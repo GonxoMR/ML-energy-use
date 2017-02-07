@@ -21,7 +21,7 @@ for type in types:
 		
 		# NOTE: adding troubleshooting might be interesting. 
 		# Obtaining streamed data
-		response = requests.get("https://emoncms.org/feed/export.json?apikey="+str(row['key'])+"&id="+str(row['id'])+"&start=0&CCBYPASS=H8F47SBDEJ")
+		response = requests.get("https://emoncms.org/feed/export.json?apikey="+str(row['key'])+"&id="+str(row['id'])+"&start=0&CCBYPASS=BYPASSKEY")
 		
 		# Obtaining meta data for error detection and time generation
 		meta = eval(requests.get("https://emoncms.org/feed/timevalue.json?id="+str(row['id'])+"&apikey="+str(row['key'])).content)
