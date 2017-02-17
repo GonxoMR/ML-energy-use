@@ -46,21 +46,51 @@ for i in range(2):#len(apiDic)):
     first = no_Nas.first_valid_index()
     no_Nas = no_Nas.loc[first:last]
     
-    naGroups = np.split(no_Nas, np.where(no_Nas.isnull() and np.diff(no_Nas) != 1 )[0]+1)
-    
-    print(len(naGroups))
-	
-    grouped_data_noNas = no_Nas.groupby(pd.TimeGrouper(freq='15min'))
-    
-    selected = no_Nas.ix[np.random.choice(no_Nas.loc[~no_Nas.isnull()].index, 20)]
-    
-    #print( no_Nas.isnull().astype(int).groupby(no_Nas.notnull().astype(int).cumsum()).sum() )
     print(first)
-    print( 'DataFrame: '+ str(feeds.count()))
-    print( 'NAs: '+ str(feeds.isnull().sum()))
-    print( 'NoNAsSize: '+ str(no_Nas.size))
-    print( 'NAs: '+ str(no_Nas.isnull().sum()))
-	
+    
+    # This retrieves the blocks of Nan in the even groups.
+    block = (no_Nas.notnull().shift(1) !=  no_Nas.notnull()).astype(int).cumsum()
+    
+    no_Nas = pd.concat([no_Nas, block], axis=1)
+    no_Nas.columns = ['unit','block']
+    naGroups = no_Nas.reset_index().groupby(['block'])['index'].apply(np.array)
+    
+    # This is the initial point of the block of NaNs
+    # naGroups[even].min()
+    # This is the initial point of the block of NaNs
+    # naGroups[even].max()
+
+    # Computing statistics
+    # Finding the number of groups of NaN in the series
+    na_periods = np.floor(naGroups.size/2)
+    
+    # Finding the aumout of time the device is off for each period.
+    na_time_periods = []
+    for i in range(int(na_periods)):
+        na_time_periods.append((naGroups[2*(i+1)].max()- naGroups[2*(i+1)].min()).astype('timedelta64[m]'))
+    
+    # Average time the device is off when it is off
+    avg_time_off = np.mean(na_time_periods)
+    
+    # NOTE: Would be interesting to see the span between periods of NA
+    # i.e. span of time between the beggining and end of odd periods
+    # Also proportion of time being off from total of time. 
+    # Lenght of series / times off
+    # Histogram of length of periods of time. <30min, 30m:1h , 1h:6h, 6h:12, 12:24, >24
+    
+    print('Number of NaN periods: '+str(na_periods)+
+          '\nAverage time unoperative: ' +str(np.mean(na_time_periods)))
+#    grouped_data_noNas = no_Nas.groupby(pd.TimeGrouper(freq='15min'))
+#    
+#    selected = no_Nas.ix[np.random.choice(no_Nas.loc[~no_Nas.isnull()].index, 20)]
+#    
+#    #print( no_Nas.isnull().astype(int).groupby(no_Nas.notnull().astype(int).cumsum()).sum() )
+#    print(first)
+#    print( 'DataFrame: '+ str(feeds.count()))
+#    print( 'NAs: '+ str(feeds.isnull().sum()))
+#    print( 'NoNAsSize: '+ str(no_Nas.size))
+#    print( 'NAs: '+ str(no_Nas.isnull().sum()))
+#	
 	# print( 'Groups mean:\n' +str(grouped.mean()) + ' - '+str(grouped_trans.mean()))
 
 	#nulls = no_Nas.loc[no_Nas.isnull()]
@@ -71,7 +101,7 @@ for i in range(2):#len(apiDic)):
     # print( no_Nas[selected.index.shift(1,freq='10s')])
     # print(last_Week)
     #print(grouped_data_noNas.tail())
-    print(no_Nas.tail)
+#    print(no_Nas.tail)
 	
 end = time.time()
 print(end - start)
