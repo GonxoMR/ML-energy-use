@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import time
 from pandas.tseries.offsets import *
+import matplotlib.pyplot as plt
 
 secretsDir = 'SECRETS_DIRECTORY'
 apiDic = pd.read_csv('~\\ML-energy-use\\'+secretsDir+'\\apiKeyDictionary.csv')
@@ -9,9 +10,8 @@ ids = apiDic['id']
 type = apiDic['type']
 
 # Need to know which feeds add toguether
+
 # Grouping data into 15 minutes periods
-
-
 start = time.time()
 feeds = pd.DataFrame()
 i = 0
@@ -25,12 +25,9 @@ for i in range(2):#len(apiDic)):
     last = feeds.last_valid_index()
     feeds = feeds.loc[first:last]
     
-    
 	# Removing NA's by coercing the group median
     grouped = feeds.groupby(pd.TimeGrouper(freq='15min'))
-	
     f = lambda x: x.fillna(x.median())
-	
     no_Nas = grouped.transform(f)
     
     # Deleting initial setup problems: If measurement(t1) = 0 or
@@ -68,18 +65,40 @@ for i in range(2):#len(apiDic)):
     na_time_periods = []
     for i in range(int(na_periods)):
         na_time_periods.append((naGroups[2*(i+1)].max()- naGroups[2*(i+1)].min()).astype('timedelta64[m]'))
+    na_time_periods = pd.Series(na_time_periods).astype('timedelta64[m]')
     
     # Average time the device is off when it is off
-    avg_time_off = np.mean(na_time_periods)
+    time_off_statistics = na_time_periods.describe()
     
-    # NOTE: Would be interesting to see the span between periods of NA
-    # i.e. span of time between the beggining and end of odd periods
-    # Also proportion of time being off from total of time. 
-    # Lenght of series / times off
-    # Histogram of length of periods of time. <30min, 30m:1h , 1h:6h, 6h:12, 12:24, >24
+    # Finding the aumout of time the device is off for each period.
+    working_time_periods = []
+    for i in range(int(na_periods)):
+        working_time_periods.append((naGroups[2*(i+1)-1].max()- naGroups[2*(i+1)-1].min()).astype('timedelta64[m]'))
+    working_time_periods = pd.Series(working_time_periods).astype('timedelta64[m]')
     
+    # Average time the device is off when it is off
+    time_working_statistics = working_time_periods.describe()
+    
+    # NOTE: 
+    # Also proportion of time being off from total of time.
+    proportion_Nas = (no_Nas.isnull().sum() / no_Nas.size)*100
+        
     print('Number of NaN periods: '+str(na_periods)+
-          '\nAverage time unoperative: ' +str(np.mean(na_time_periods)))
+          '\nAverage time unoperative:\n' +str(time_off_statistics)+
+          '\nAverage time operative:\n'+ str(time_working_statistics)+
+          '\nProportion data that is NA: '+ str(proportion_Nas)+'%')
+    
+    # Histogram of length of periods of time unoperative. <30min, 30m:1h , 1h:6h, 6h:12, >12
+    bins=[0,30,60,360,720,100000]
+    hist, bind_edges = np.histogram(na_time_periods, bins=bins, color='k')
+    fig,ax = plt.subplots()
+    ax.bar(range(len(hist)),hist,width=1)
+    ax.set_xticks([0.5+i for i,j in enumerate(hist)])
+    ax.set_xticklabels(['{} - {}'.format(bins[i],bins[i+1]) for i,j in enumerate(hist)])
+    plt.show()
+
+    #na_time_periods.astype('float64').hist()
+    
 #    grouped_data_noNas = no_Nas.groupby(pd.TimeGrouper(freq='15min'))
 #    
 #    selected = no_Nas.ix[np.random.choice(no_Nas.loc[~no_Nas.isnull()].index, 20)]
