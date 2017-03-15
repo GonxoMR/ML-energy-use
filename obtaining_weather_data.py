@@ -14,7 +14,7 @@ import pandas as pd
 import datetime as dt
 
 # Put your weather underground apikey
-wuapikey = 'APIKEY'
+wuapikey = '40d2bb7e63332cdf'
 
 # Change to your own location.
 coordinates = 'LATITUDE,LONGITUDE'
@@ -52,9 +52,9 @@ for day in pd.date_range(initdate,enddate, freq= 'd'):
 
 print('Weather')
 print(weather)
+
+# Save data 
 weather.to_csv('~\\ML-energy-use\\DATA_DIRECTORY\\WEATHER_DATA\\'+coordinates+'.csv')
 
 
-# Stop at 500 calls/days.
 
-# Save data 

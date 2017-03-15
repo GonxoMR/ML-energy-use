@@ -10,7 +10,6 @@
 import numpy as np 
 import pandas as pd 
 import time
-import datetime
 from pandas.tseries.offsets import *
 import matplotlib.pyplot as plt
 
@@ -38,7 +37,7 @@ type = apiDic['type']
 start = time.time()
 
 # Creating a saving file for after processing
-store = pd.HDFStore('C:\\Users\\Gonxo\\ML-energy-use\\DATA_DIRECTORY\\15min_noNaNs_201702241245.h5')
+store = pd.HDFStore('C:\\Users\\Gonxo\\ML-energy-use\\DATA_DIRECTORY\\15min_noNaNs_201703081045.h5')
 
 # Empty data frame to store previous feeds
 feeds = pd.DataFrame()
@@ -48,17 +47,16 @@ for i in range(len(apiDic)):
     print(str(type[i])+'_'+str(ids[i]))
     
     # Obtaining the feed from the hdf5 file
-    feeds = pd.read_hdf('C:\\Users\\Gonxo\\ML-energy-use\\DATA_DIRECTORY\\home_feeds.h5', str(type[i])+'_'+str(ids[i]))['unit']
+    feeds = pd.read_hdf('C:\\Users\\Gonxo\\ML-energy-use\\DATA_DIRECTORY\\home_feeds.h5', str(type[i])+'_'+str(ids[i]))['watts_hour']
      
     # Deleting NaNs at the beggining and end of te series.
     first = feeds.first_valid_index()
     last = feeds.last_valid_index()
     feeds = feeds.loc[first:last]
     
-#	 1. Removing NA's by coercing the 15 min group median
+#	 1. Removing NA's by coercing the 15 min group mean
     grouped = feeds.groupby(pd.TimeGrouper(freq='15min'))
-    f = lambda x: x.fillna(x.median())
-    no_Nas = grouped.transform(f)
+    no_Nas = grouped.transform(lambda x: x.fillna(x.mean()))
     
 #   2.Deleting NaNs at the beggining of the series after removing some erroneous observations
     first = cleanBeggining(no_Nas)
@@ -68,7 +66,7 @@ for i in range(len(apiDic)):
 #   3. This retrieves the blocks of Nan in the even groups.
     block = (no_Nas.notnull().shift(1) !=  no_Nas.notnull()).astype(int).cumsum()
     no_Nas = pd.concat([no_Nas, block], axis=1)
-    no_Nas.columns = ['unit','block']
+    no_Nas.columns = ['watts_hour','block']
     naGroups = no_Nas.reset_index().groupby(['block'])['index'].apply(np.array)
 
 #   4. Computing statistics
@@ -111,13 +109,13 @@ for i in range(len(apiDic)):
         ax.set_xticks([0.5+i for i,j in enumerate(hist)])
         ax.set_xticklabels(['{} - {}'.format(bins[i],bins[i+1]) for i,j in enumerate(hist)])
         plt.show()
-    
-        no_Nas = no_Nas['unit']
-        long_NaNs = na_time_periods.loc[na_time_periods.astype('timedelta64[D]') > 15].index
+
+# 5. Deleting part of series that have 
+        no_Nas = no_Nas['watts_hour']
+        long_NaNs = na_time_periods.loc[na_time_periods.astype('timedelta64[D]') > 14].index
         if len(long_NaNs):
             for j in long_NaNs:
                 no_Nas = no_Nas.loc[naGroups[long_NaNs+4].values[0].max().astype('datetime64[ns]'):last]
-    
         
             no_Nas = no_Nas.loc[cleanBeggining(no_Nas):last]
             
@@ -132,10 +130,8 @@ for i in range(len(apiDic)):
         plt.figure(1)
         plt.subplot(211)
         grouped_data_noNas.plot()
-    
-        
-        nulls = grouped_data_noNas.loc[grouped_data_noNas.isnull()]
-    
+# 5. Grouping data and imputing interpolation method.
+    #   Computing NaN as the previous week value
         grouped_data_noNas.ix[nulls.index] = grouped_data_noNas.ix[nulls.index-Week()].values
         
         plt.subplot(212)
@@ -143,12 +139,13 @@ for i in range(len(apiDic)):
         plt.show()
         
     #    # print( no_Nas[selected.index.shift(1,freq='10s')])
-    ##    print(no_Nas['unit'].isnull().sum())
+    ##    print(no_Nas['watts_hour'].isnull().sum())
         print(grouped_data_noNas.isnull().sum())
         # Saving individual data frames into the hf5 file. Each feed is individually saved with its type.
         store[str(type[i])+'_'+str(ids[i])] = grouped_data_noNas
     else:
         print ('This feed is empty')
+        
 store.close()	
 end = time.time()
 print(end - start)

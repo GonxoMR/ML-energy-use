@@ -56,15 +56,13 @@ for type in types:
                 print('Last value array: '+ str(array[-1]) + '\nLast value feed: '+ str(meta['value']))
                 print(time.time())
 			# Giving time to the data observations
-            df = pd.DataFrame({"unit":array},index= pd.date_range(pd.to_datetime(start_point+10, unit='s'),pd.to_datetime(end_point, unit='s'), freq='10S'))
+            df = pd.DataFrame({"watts_hour":array},index= pd.date_range(pd.to_datetime(start_point+10, unit='s'),pd.to_datetime(end_point, unit='s'), freq='10S'))
             apiDic.loc[index,'start'] = start_point
             apiDic.loc[index, 'end'] = end_point	
 							
         else:
             print("Error: The number of elements recieved is: "+str(len(response.content))+" which is not multiple of 4. Decodification is not posible. Feed: "+ str(row['id']))
-		
-
-         
+		        
 		# Saving individual data frames into the hf5 file. Each feed is individually saved with its type.
         store[str(type)+'_'+str(row['id'])] = df
 
