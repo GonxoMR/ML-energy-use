@@ -53,8 +53,6 @@ for day in pd.date_range(initdate,enddate, freq= 'd'):
 print('Weather')
 print(weather)
 
+
 # Save data 
 weather.to_csv('~\\ML-energy-use\\DATA_DIRECTORY\\WEATHER_DATA\\'+coordinates+'.csv')
-
-
-
