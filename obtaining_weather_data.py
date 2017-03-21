@@ -26,8 +26,8 @@ apiDic = pd.read_csv('~\\ML-energy-use\\SECRETS_DIRECTORY\\apiKeyDictionary.csv'
 weather = pd.DataFrame()
 
 # Obtain the necesary period
-initdate = dt.datetime.utcfromtimestamp(apiDic.loc[(apiDic['lan_long']==coordinates),['start']].min())
-enddate = dt.datetime.utcfromtimestamp(apiDic.loc[(apiDic['lan_long']==coordinates),['end']].max())
+initdate = dt.datetime.utcfromtimestamp(apiDic.loc[(apiDic['lat_long']==coordinates),['start']].min())
+enddate = dt.datetime.utcfromtimestamp(apiDic.loc[(apiDic['lat_long']==coordinates),['end']].max())
 print(initdate.strftime('%Y%m%d'), enddate.strftime('%Y%m%d'))
 
 # Call to weather underground
@@ -44,9 +44,9 @@ for day in pd.date_range(initdate,enddate, freq= 'd'):
     df = pd.DataFrame(decoded['history']['observations'])
 
 # Uncoment to create a datetime from a list.
-#        for j in range(df['date'].size):
-#            df['date'][j] = pd.datetime(int(df['date'][j]['year']),int(df['date'][j]['mon']),
-#                        int(df['date'][j]['mday']),int(df['date'][j]['hour']),int(df['date'][j]['min']))
+        for j in range(df['date'].size):
+            df['date'][j] = pd.datetime(int(df['date'][j]['year']),int(df['date'][j]['mon']),
+                        int(df['date'][j]['mday']),int(df['date'][j]['hour']),int(df['date'][j]['min']))
     
     weather = weather.append(df)
 

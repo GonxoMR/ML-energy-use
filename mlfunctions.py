@@ -81,7 +81,11 @@ def seasonalANOVA(HC, period='month'):
 def deseasonalize(feed, r_id):
     import matplotlib.pyplot as plt
     
-    feed[r_id] = pd.DataFrame(feed)
+    feed = pd.DataFrame(feed)
+
+    feed.columns = [r_id]
+    
+
     
     for i in range(3):
         if i == 0:
@@ -106,16 +110,20 @@ def deseasonalize(feed, r_id):
 # Daily average
 
         feed[avg] = feed[r_id].groupby(pd.TimeGrouper(aggPeriod)).transform('median')
-# Moving average 1 day window
-#        feed[avg] = feed[r_id].rolling(window=winSize,center=True).mean()
 
-# Normalized series for 1 day
+# Moving average 1 day window
+#        feed[:,avg] = feed[r_id].rolling(window=winSize,center=True).mean()
+
+## Normalized series for 1 day
         feed[z] = feed[r_id] / feed[avg]
         
-# Findind quarter of an hour means
-        feed[u] = y/feed[z].groupby(pd.TimeGrouper(granularity)).transform('mean')
+
         
+## Findind quarter of an hour means
+        feed[u] = y/feed[z].groupby(pd.TimeGrouper(granularity)).transform('mean')
+
         y = feed[u]
+
 
     plt.plot(feed[r_id], '-', ms = 0.1)
     plt.plot(feed[u], '-', ms= 0.1)
@@ -123,5 +131,8 @@ def deseasonalize(feed, r_id):
     plt.plot(feed['avgW_'+r_id], '-', ms = 0.2)
     plt.plot(feed['avgM_'+r_id], '-', ms = 0.2)
     plt.show()
-    
+ 
     return(feed)
+
+def tokwh(feed):
+    return(feed * 10 / 3600000)
