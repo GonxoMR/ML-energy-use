@@ -22,8 +22,10 @@ dataDir = 'C:\\Users\\Gonxo\\ML-energy-use\\DATA_DIRECTORY'
 secretsDir = 'C:\\Users\\Gonxo\\ML-energy-use\\SECRETS_DIRECTORY'
 apiDic = pd.read_csv(secretsDir+'\\apiKeyDictionary.csv',sep=None, engine='python')
 sourceFile = dataDir+'\\15min_noNaNs_201703081045.h5'
-store = pd.HDFStore('C:\\Users\\Gonxo\\ML-energy-use\\DATA_DIRECTORY\\aggregated_feeds.h5')
 
+print('here')
+store = pd.HDFStore('C:\\Users\\Gonxo\\ML-energy-use\\DATA_DIRECTORY\\aggregated_fs.h5')
+print('here')
 # Loading relevant data after removing NaNs adding grid power and solar power. 
 # House consumption = Grid power + solar power
 # HC = house_consumption
@@ -68,5 +70,5 @@ for index, row in apiDic.loc[:,['key','type','id']].iterrows():
 end = time.time()
 print(end - start)
 
-r_id = str(13245)
-feed = pd.read_hdf('C:\\Users\\Gonxo\\ML-energy-use\\DATA_DIRECTORY\\aggregated_feeds.h5', '/feed_'+r_id)
+r_id = str(20075)
+feed = pd.read_hdf('C:\\Users\\Gonxo\\ML-energy-use\\DATA_DIRECTORY\\aggregated_fs.h5', '/feed_'+r_id)

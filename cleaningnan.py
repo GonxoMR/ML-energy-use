@@ -126,6 +126,9 @@ for i in range(len(apiDic)):
         if (str(type[i]) == 'grid_power' or str(type[i]) == 'house_consumption'):
             grouped_data_noNas.loc[grouped_data_noNas < 0] = np.nan
         
+# I want to add it to the data frame. 
+        isNan = grouped_data_noNas.isnull()
+        
     #    Ploting beffore cleaning Nans
         plt.figure(1)
         plt.subplot(211)
