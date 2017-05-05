@@ -4,20 +4,17 @@ Created on Wed Mar 15 20:44:53 2017
 
 @author: Gonxo
 """
-import pandas as pd
-from bdateutil import isbday
-import holidays 
+
 from pandas.tseries.offsets import *
 import numpy as np
-import mlfunctions
+import mlfunctions as mlf
 from meteocalc import Temp, dew_point, heat_index
 import datetime as dt
-
-dataDir = 'C:\\Users\\Gonxo\\ML-energy-use\\DATA_DIRECTORY'
-secretsDir = 'C:\\Users\\Gonxo\\ML-energy-use\\SECRETS_DIRECTORY'
-apiDic = pd.read_csv(secretsDir+'\\apiKeyDictionary.csv', sep=None, engine='python')
+from sklearn import preprocessing
+import os
 
 def evalDate(x):
+    import pandas as pd
     x = eval(x)
     if x['min'] < '20':
         x['min'] = str(20)
@@ -25,14 +22,21 @@ def evalDate(x):
 #    print(x['year'], x['mon'], x['mday'], x['hour'], x['min'])
     return (pd.datetime(int(x['year']), int(x['mon']), int( x['mday']), int( x['hour']), int( x['min'])-20))
 
-def featureCreation(feed, r_id):
+
+def featureCreation(feed, window, h, grouper, dataDir, apiDic, r_id = None, longestfeed = False):
+    import pandas as pd
+    from bdateutil import isbday
+    import holidays 
+    
+    feed = pd.DataFrame(feed)
+    # print(feed)
     
 # Quarter of hour
     counter = 0
     array = []
-    for i in pd.date_range('00:00', '23:45', freq='15min'):
-        feed.loc[(feed.index.hour == i.hour) & (feed.index.minute == i.minute),'quarterhourofday'] = counter
-        array.append( feed.loc[feed['quarterhourofday']== counter].values)
+    for i in pd.date_range('00:00', '23:45', freq=grouper):
+        feed.loc[(feed.index.hour == i.hour) & (feed.index.minute == i.minute),grouper] = counter
+        array.append( feed.loc[feed[grouper]== counter].values)
         counter += 1
 
 # Hour of day
@@ -45,18 +49,82 @@ def featureCreation(feed, r_id):
     feed['month'] = feed.index.month
 
 # Working day
-#    f = np.vectorize(lambda x: isbday(x, holidays=holidays.UK(years=[2013,2014,2015,2016,2017])))
-#    feed['isworkingday'] = f(feed.index.date)
-#    
-# Previous readings○
-    for i in range(1,70):
-        feed['t_%s' %i] = feed[r_id].shift(i, freq ='15min')
-
+    f = np.vectorize(lambda x: isbday(x, holidays=holidays.UK(years=[2013,2014,2015,2016,2017])))
+    feed['isworkingday'] = f(feed.index.date)
+  
 # Weather data
-    for index, row in apiDic.loc[(apiDic['id']==int(r_id)), ['key','lat_long']].iterrows():
-        print(index, row.lat_long)
-        weather = pd.read_csv(dataDir+'\\WEATHER_DATA\\%s.csv' %row['lat_long'].replace(" ", ""))
+
+    if longestfeed == False:
+#        print(feed.ix[feed.first_valid_index():, 0])
+        features, response = mlf.ts_to_mimo(feed.ix[feed.first_valid_index():, 0], window, h)
+    
+        for index, row in apiDic.loc[(apiDic['id']==int(r_id)), ['key','lat_long']].iterrows():
+            
+            print(row)
+            weather = pd.DataFrame.from_csv(os.path.join(dataDir,'WEATHER_DATA','%s.csv'  %row['lat_long'].replace(" ", "")))
+            
+            # Converting text date into datetime       
+            weather['cleandate'] = weather['utcdate'].apply(lambda x: evalDate(x))
+            
+            weather.index = weather['cleandate']
+            # Deleting irrelevant columns   
+            if 'date' in weather.columns:
+                del weather['date']
+                
+            if 'date.1' in weather.columns:
+                del weather['date.1']
+            
+            if 'utcdate' in weather.columns:
+                del weather['utcdate']
+            
+            if 'Unnamed: 0' in weather.columns:
+                del weather['Unnamed: 0']
+            
+            # Droping duplicates
+            weather = weather.drop_duplicates(subset='cleandate')
+            
+            weather = weather.reindex(pd.date_range(weather['cleandate'].min(), weather['cleandate'].max(), freq=grouper)
+                                      , method='backfill')
+            
+            weather['heatindex'] = weather.apply(lambda x: heat_index(Temp(x['tempi'],'f'),x['hum']), axis=1).astype('float')
+            
+            weather = weather.loc[:,('conds', 'dewptm', 'fog', 'hail','hum', 
+                              'precipm', 'pressurem','rain', 'snow', 'tempm', 'thunder',
+                              'wdird', 'wdire', 'wgustm',  'windchillm', 'wspdm', 'heatindex')]
+            
+            weather.loc[:,'conds'] = weather.loc[:,'conds'].fillna('Unknown')
+            weather.loc[:,'wdire'] = weather.loc[:,'wdire'].fillna('Variable')
+            
+            le = le2 = preprocessing.LabelEncoder()
+            le.fit(weather['conds'])
+            weather['conds'] = le.transform(weather['conds'])
+            le2.fit(weather['wdire'])
+            weather['wdire'] = le2.transform(weather['wdire'])
+            
+            weather.replace([-9999.0,-999.0],[np.nan,np.nan], inplace=True)
+            
+            weather.loc[:, ('precipm','wgustm')] = weather.loc[:, ('precipm','wgustm')].fillna(0)
+            
+            weather.windchillm = weather.windchillm.fillna(weather.tempm)
+            
+            weather = weather.interpolate()
+            
+            if weather.index.max() < feed.index.max():
+                feed = feed[:weather.index.max(),:]
+            
+            weather = weather[feed.index[(window + h-1)]:feed.index.max()]
+            
+            weather = weather.values
+            
+            features = np.concatenate((feed.ix[(window + h -1):, ('isworkingday',grouper,'hourofday','dayofweek','month')],weather, features), axis=1)
+    
+    else:
         
+        features, response = mlf.ts_to_mimo(feed.ix[feed.first_valid_index():, 0], window, h)
+    
+        row = apiDic.loc[(apiDic['id']==longestfeed), ('key','lat_long')]
+        weather = pd.read_csv(dataDir+'\\WEATHER_DATA\\%s.csv' %str(row['lat_long'].values).replace(" ", "").replace("['", "").replace("']", "") )
+            
         # Converting text date into datetime       
         weather['cleandate'] = weather['utcdate'].apply(lambda x: evalDate(x))
         
@@ -82,20 +150,37 @@ def featureCreation(feed, r_id):
         
         weather['heatindex'] = weather.apply(lambda x: heat_index(Temp(x['tempi'],'f'),x['hum']), axis=1).astype('float')
         
-        weather = weather.loc[:,('conds', 'dewptm', 'fog', 'hail', 'heatindexm','hum', 
+        weather = weather.loc[:,('conds', 'dewptm', 'fog', 'hail','hum', 
                           'precipm', 'pressurem','rain', 'snow', 'tempm', 'thunder',
                           'wdird', 'wdire', 'wgustm',  'windchillm', 'wspdm', 'heatindex')]
         
+        weather.loc[:,'conds'] = weather.loc[:,'conds'].fillna('Unknown')
+        weather.loc[:,'wdire'] = weather.loc[:,'wdire'].fillna('Variable')
+        
+        le = le2 = preprocessing.LabelEncoder()
+        le.fit(weather['conds'])
+        weather['conds'] = le.transform(weather['conds'])
+        le2.fit(weather['wdire'])
+        weather['wdire'] = le2.transform(weather['wdire'])
+        
         weather.replace([-9999.0,-999.0],[np.nan,np.nan], inplace=True)
         
-    
-    feed = pd.merge(feed, weather, left_index=True, right_index=True)
-    
-    feed.loc[:,feed.dtypes=='object'] = feed.loc[:,feed.dtypes=='object'].apply(lambda x: x.astype('category'))
-    
-    return (feed)
+        weather.loc[:, ('precipm','wgustm')] = weather.loc[:, ('precipm','wgustm')].fillna(0)
+        
+        weather.windchillm = weather.windchillm.fillna(weather.tempm)
+        
+        weather = weather.interpolate()
+        
+        weather = weather[feed.index[(window + h-1)]:feed.index.max()]
+        
+        weather = weather.values
+        
+        features = np.concatenate((feed.ix[(window + h -1):, ('activefeeds','isworkingday','quarterhourofday','hourofday','dayofweek','month')],weather, features), axis=1)
 
-feed = featureCreation(feed, r_id)
+#    print(feed.ix[(window + h ):, ('isworkingday','quarterhourofday','hourofday','dayofweek','month')].shape, weather.shape, features.shape)
+    
+    return (features, response)
+
 
 
 

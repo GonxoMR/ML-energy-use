@@ -12,47 +12,66 @@ import requests
 import json
 import pandas as pd
 import datetime as dt
+import os
+from pandas.tseries.offsets import Day
+
+wd = os.getcwd()
 
 # Put your weather underground apikey
 wuapikey = '40d2bb7e63332cdf'
 
 # Change to your own location.
-coordinates = 'LATITUDE,LONGITUDE'
+#coordinates = 'LATITUDE,LONGITUDE'
 
 # Open the metadata
-apiDic = pd.read_csv('~\\ML-energy-use\\SECRETS_DIRECTORY\\apiKeyDictionary.csv')
+apiDic = pd.read_csv(os.path.join(wd,'SECRETS_DIRECTORY','apiKeyDictionary.csv'))
 
-
-weather = pd.DataFrame()
-
-# Obtain the necesary period
-initdate = dt.datetime.utcfromtimestamp(apiDic.loc[(apiDic['lat_long']==coordinates),['start']].min())
-enddate = dt.datetime.utcfromtimestamp(apiDic.loc[(apiDic['lat_long']==coordinates),['end']].max())
-print(initdate.strftime('%Y%m%d'), enddate.strftime('%Y%m%d'))
-
-# Call to weather underground
-for day in pd.date_range(initdate,enddate, freq= 'd'):
-  
-    day = day.strftime('%Y%m%d')
-    response = requests.get('http://api.wunderground.com/api/'+wuapikey+'/history_'+
-                            str(day)+'/q/'+coordinates+'.json').content
-                            
-
-    decoded = json.loads(response)
+for coordinates in apiDic['lat_long']:
     
-        
-    df = pd.DataFrame(decoded['history']['observations'])
+    weather = pd.DataFrame()
 
-# Uncoment to create a datetime from a list.
+    enddate = dt.datetime.utcfromtimestamp(apiDic.loc[(apiDic['lat_long']==coordinates),['end']].max())
+    
+    if os.path.isfile(os.path.join(wd,'DATA_DIRECTORY','WEATHER_DATA','%s.csv' %coordinates)):
+        weather = pd.DataFrame.from_csv(os.path.join(wd,'DATA_DIRECTORY','WEATHER_DATA','%s.csv' %coordinates))
+
+        if 'date' in weather.columns:
+            if dt.datetime.strptime(weather['date'].max(), '%Y-%m-%d %H:%M:%S').date() < enddate.date():
+#                initdate = dt.datetime.utcfromtimestamp(apiDic.loc[(apiDic['lat_long']==coordinates),['start']].min())
+                initdate = dt.datetime.strptime(weather['date'].max(), '%Y-%m-%d %H:%M:%S').date()+Day()
+            
+            else:
+                print('There is already weather data for the coordinates %s.' %coordinates)
+                continue
+    
+    else:
+        initdate = dt.datetime.utcfromtimestamp(apiDic.loc[(apiDic['lat_long']==coordinates),['start']].min())
+    
+    print('Collecting weather data from %s to %s coordinates %s' %(initdate, enddate.date(), coordinates))
+    
+    # Obtain the necesary period
+    # Call to weather underground
+    for day in pd.date_range(initdate,enddate, freq= 'd'):
+      
+        day = day.strftime('%Y%m%d')
+        response = requests.get('http://api.wunderground.com/api/'+wuapikey+'/history_'+
+                                str(day)+'/q/'+coordinates+'.json')
+                                
+    
+        decoded = json.loads(response.text)
+        
+            
+        df = pd.DataFrame(decoded['history']['observations'])
+    
+    # Uncoment to create a datetime from a list.
         for j in range(df['date'].size):
             df['date'][j] = pd.datetime(int(df['date'][j]['year']),int(df['date'][j]['mon']),
                         int(df['date'][j]['mday']),int(df['date'][j]['hour']),int(df['date'][j]['min']))
     
-    weather = weather.append(df)
+        weather = weather.append(df)
 
-print('Weather')
-print(weather)
+    # Save data 
+    weather.to_csv(os.path.join(wd,'DATA_DIRECTORY','WEATHER_DATA','%s.csv' %coordinates))
 
 
-# Save data 
-weather.to_csv('~\\ML-energy-use\\DATA_DIRECTORY\\WEATHER_DATA\\'+coordinates+'.csv')
+

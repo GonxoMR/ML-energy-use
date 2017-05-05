@@ -1,6 +1,7 @@
 # Data directory and secret directory
 SECRETS_DIRECTORY/
 DATA_DIRECTORY/
+MODELS/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
