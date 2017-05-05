@@ -60,7 +60,6 @@ def featureCreation(feed, window, h, grouper, dataDir, apiDic, r_id = None, long
     
         for index, row in apiDic.loc[(apiDic['id']==int(r_id)), ['key','lat_long']].iterrows():
             
-            print(row)
             weather = pd.DataFrame.from_csv(os.path.join(dataDir,'WEATHER_DATA','%s.csv'  %row['lat_long'].replace(" ", "")))
             
             # Converting text date into datetime       
