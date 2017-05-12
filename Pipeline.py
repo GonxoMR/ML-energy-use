@@ -105,7 +105,7 @@ for grouper in [ '30min','15min']:
                 for j in range(0,3):
                     if j == 0:
                         parameters = {'hidden_layer_sizes':[(600,300),(600,300,100)], 'activation': ('logistic','relu'), 'alpha': [1e-3,1e-4,1e-5],'tol':[1e-4,1e-5]}
-                        clf = GridSearchCV(neural_network.MLPRegressor(learning_rate ='adaptative', verbose=True ,batch_size=4000), param_grid = parameters, scoring='r2')
+                        clf = GridSearchCV(neural_network.MLPRegressor(learning_rate_init=0.0001, verbose=True ,batch_size=4000), param_grid = parameters, scoring='r2')
                         model = 'NN'
                     if j == 1:
                         parameters = {'max_depth': [30,50,70]}
@@ -113,15 +113,15 @@ for grouper in [ '30min','15min']:
                         model = 'RandFor'
                     if j== 2:
                         model = 'KNNR'
-                        parameters = {'n_neighbors':[5, 20, 50, 100], 'weigths': ('uniform', 'distance')}
+                        parameters = {'n_neighbors':[5, 20, 50, 100], 'weights': ('uniform', 'distance')}
                         clf = GridSearchCV(knn.KNeighborsRegressor( n_jobs=-1), param_grid = parameters, scoring='r2')
                         
                     print ('Ready to run %s_%s_%s_%s' %(model,r_type,r_id, grouper))
                     start = time.time()
                     clf.fit(features[train],response[train])
                     
-                    time = time.time() - start
-                    print(time)
+                    running_time = time.time() - start
+                    print(running_time)
                     
                     clf.score(features[test],response[test])
                     joblib.dump(clf, os.path.join(wd,'MODELS','%s_%s_%s_%s.pkl' %(model, r_type,r_id, grouper)))
@@ -136,7 +136,7 @@ for grouper in [ '30min','15min']:
                         if measure == 'MAPE':
                             scores = np.mean((np.abs(response[test] - prediction)/ response[test]), axis=0)
                     
-                        c = [r_id, r_type, strategy, model, measure, time] 
+                        c = [r_id, r_type, strategy, model, measure, running_time] 
                         c.extend(scores)
 
                         results = results.append(pd.DataFrame(c, index=columns).transpose())
@@ -158,7 +158,7 @@ for grouper in [ '30min','15min']:
                     
                     if j == 0:
                         parameters = {'hidden_layer_sizes':[(600,300),(600,300,100)], 'activation': ('logistic','relu'), 'alpha': [1e-3,1e-4,1e-5],'tol':[1e-4,1e-5]}
-                        clf = GridSearchCV(neural_network.MLPRegressor(learning_rate ='adaptative', verbose=True ,batch_size=4000), param_grid = parameters, scoring='r2')
+                        clf = GridSearchCV(neural_network.MLPRegressor(learning_rate_init=0.0001,verbose=True ,batch_size=4000), param_grid = parameters, scoring='r2')
                         model = 'NN'
                     if j == 1:
                         parameters = {'max_depth': [30,50,70]}
@@ -166,7 +166,7 @@ for grouper in [ '30min','15min']:
                         model = 'RandFor'
                     if j== 2:
                         model = 'KNNR'
-                        parameters = {'n_neighbors':[5, 20, 50, 100], 'weigths': ('uniform', 'distance')}
+                        parameters = {'n_neighbors':[5, 20, 50, 100], 'weights': ('uniform', 'distance')}
                         clf = GridSearchCV(knn.KNeighborsRegressor( n_jobs=-1), param_grid = parameters, scoring='r2')
           
                     predict = pd.DataFrame()
@@ -194,7 +194,7 @@ for grouper in [ '30min','15min']:
                             if measure == 'MAPE':
                                 mape.extend([np.mean((np.abs(response[test,i] - prediction.transpose())/ response[test,i]), axis=0)])
                     
-                    time = time.time() - start
+                    running_time = time.time() - start
                     print()
                     c = ['measure']
                     c.extend(['t_%i' %(i+1) for i in range(h)])
@@ -204,7 +204,7 @@ for grouper in [ '30min','15min']:
                     r['strategy'] = strategy
                     r['model'] = model
                     r['type'] = r_type
-                    r['time'] = time
+                    r['time'] = running_time
                     results = results.append(r)
      
                     results.to_csv(results_path)
@@ -224,7 +224,7 @@ for grouper in [ '30min','15min']:
 
                     if j == 0:
                         parameters = {'hidden_layer_sizes':[(600,300),(600,300,100)], 'activation': ('logistic','relu'), 'alpha': [1e-3,1e-4,1e-5],'tol':[1e-4,1e-5]}
-                        clf = GridSearchCV(neural_network.MLPRegressor(learning_rate ='adaptative', verbose=True ,batch_size=4000), param_grid = parameters, scoring='r2')
+                        clf = GridSearchCV(neural_network.MLPRegressor( learning_rate_init=0.0001,verbose=True ,batch_size=4000), param_grid = parameters, scoring='r2')
                         model = 'NN'
                     if j == 1:
                         parameters = {'max_depth': [30,50,70]}
@@ -232,7 +232,7 @@ for grouper in [ '30min','15min']:
                         model = 'RandFor'
                     if j== 2:
                         model = 'KNNR'
-                        parameters = {'n_neighbors':[5, 20, 50, 100], 'weigths': ('uniform', 'distance')}
+                        parameters = {'n_neighbors':[5, 20, 50, 100], 'weights': ('uniform', 'distance')}
                         clf = GridSearchCV(knn.KNeighborsRegressor( n_jobs=-1), param_grid = parameters, scoring='r2')
                         
                     r2 = ['R2']
@@ -257,8 +257,8 @@ for grouper in [ '30min','15min']:
                     predict = pd.DataFrame(np.flip(feat[test[(h+1):],:h],1))
                     predict.columns = ['t_%i' %(i+1) for i in range(h)]
 
-                    time = time.time() - start
-                    print(time)
+                    running_time = time.time() - start
+                    print(running_time)
                     
                     del clf, feat
                     
@@ -280,7 +280,7 @@ for grouper in [ '30min','15min']:
                     r['strategy'] = strategy
                     r['model'] = model
                     r['type'] = r_type
-                    r['time'] = time
+                    r['time'] = running_time
                     results = results.append(r)
      
                     results.to_csv(results_path)
