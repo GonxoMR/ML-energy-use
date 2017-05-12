@@ -449,6 +449,48 @@ def ts_to_mimo(x, window, h):
 
     return features, response
 
+def gridSeach(model, parameters, features, response, train, test):
+    """
+    This function performs a grid search over the parameter space. 
+    It is simplistic and only allows certain range of values. If there
+    is a parameter in the models that needs to be a list it has to be modified. 
+    """
+    
+    import itertools
+    import pandas as pd
+    
+    names = sorted(parameters)
+    
+    combinations = list(itertools.product(*(parameters[name] for name in names)))
+    names.append('r2')
+    model_matrix = pd.DataFrame(columns=names)
+
+    for c in combinations:
+        dictionary = dict(zip(names, c))
+
+        model = model.set_params(**dictionary)
+        
+        model.fit(features[train], response[train])
+        
+        if 'hidden_layer_sizes' in dictionary:
+            dictionary.update({'hidden_layer_sizes':[dictionary['hidden_layer_sizes']],
+                               'r2':model.score(features[test], response[test])})
+        else:
+            dictionary.update({'r2':model.score(features[test], response[test])})
+            
+        model_matrix = model_matrix.append(dictionary, ignore_index=True)
+        
+    dictionary = dict(model_matrix.ix[model_matrix['r2'].argmax(),:-1])
+    
+    if 'hidden_layer_sizes' in dictionary:
+        dictionary.update({'hidden_layer_sizes':dictionary['hidden_layer_sizes'][0]})
+    
+    model = model.set_params(**dictionary)
+    
+    model.fit(features[train], response[train])
+    
+    return (model, model_matrix)
+
 #def test_stationarity(timeseries):
 #    from statsmodels.tsa.stattools import adfuller
 #    import matplotlib.pyplot as plt
