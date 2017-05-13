@@ -64,6 +64,7 @@ for grouper in [ '30min','15min']:
     predictions = pd.DataFrame(columns=columns)
     del predictions['measure']
 
+    # This is new
     for index, row in apiDic.ix[2:3,['key','type','id']].iterrows():
 
         r_type = str(row['type'])
