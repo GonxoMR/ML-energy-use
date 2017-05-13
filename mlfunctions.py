@@ -484,6 +484,8 @@ def gridSeach(model, parameters, features, response, train, test):
     
     if 'hidden_layer_sizes' in dictionary:
         dictionary.update({'hidden_layer_sizes':dictionary['hidden_layer_sizes'][0]})
+    if 'n_neighbors' in dictionary:
+        dictionary.update({'n_neighbors':int(dictionary['n_neighbors'])})
     
     model = model.set_params(**dictionary)
     

@@ -9,7 +9,6 @@ from sklearn import neighbors as knn
 from sklearn import neural_network
 from sklearn.metrics import r2_score, mean_absolute_error
 from sklearn.externals import joblib
-from sklearn.model_selection import GridSearchCV
 
 import pandas as pd
 import numpy as np
@@ -65,7 +64,7 @@ for grouper in [ '30min','15min']:
     predictions = pd.DataFrame(columns=columns)
     del predictions['measure']
 
-    for index, row in apiDic.ix[:,['key','type','id']].iterrows():
+    for index, row in apiDic.ix[5:6,['key','type','id']].iterrows():
 
         r_type = str(row['type'])
         r_id = str(row['id'])
@@ -83,8 +82,8 @@ for grouper in [ '30min','15min']:
         feed = mlf.deseasonalize(feed.ix[1:], r_id, plot=False)
         
         # Normalize data
-        
-        feed['normalized'] = ((feed.ix[:,-1] - feed.ix[:,-1].min()) / (feed.ix[:,-1].max() - feed.ix[:,-1].min()))+0.00000000001
+        feed['kwh'] = mlf.tokwh(feed.ix[:,-1])
+#        feed['normalized'] = ((feed.ix[:,-1] - feed.ix[:,-1].min()) / (feed.ix[:,-1].max() - feed.ix[:,-1].min()))+0.00000000001
 
         # Creating features, joining with weather data.
 
@@ -97,28 +96,29 @@ for grouper in [ '30min','15min']:
         
         # MIMO, DIR and Recursive
         
-        for strategy in ['REC','DIR' , 'MIMO']:
+        for strategy in [ 'MIMO','REC','DIR', 'DIRMO']:
 
             if strategy == 'MIMO':
                 
             # NN, KNN, RandForest. (SVR)
-                for j in range(0,3):
+                for j in range(1,2):
                     if j == 0:
                         parameters = {'hidden_layer_sizes':[(600,300),(600,300,100)], 'activation': ('logistic','relu'), 'alpha': [1e-3,1e-4,1e-5],'tol':[1e-4,1e-5]}
-                        clf = GridSearchCV(neural_network.MLPRegressor(learning_rate_init=0.0001, verbose=True ,batch_size=4000), param_grid = parameters, scoring='r2')
+                        clf = neural_network.MLPRegressor(learning_rate_init=0.0001, verbose=True ,batch_size=4000)
                         model = 'NN'
                     if j == 1:
                         parameters = {'max_depth': [30,50,70]}
-                        clf = GridSearchCV(RandomForestRegressor(max_depth=30, n_jobs=-1), param_grid = parameters, scoring='r2')
+                        clf = RandomForestRegressor( n_jobs=-1)
                         model = 'RandFor'
                     if j== 2:
                         model = 'KNNR'
                         parameters = {'n_neighbors':[5, 20, 50, 100], 'weights': ('uniform', 'distance')}
-                        clf = GridSearchCV(knn.KNeighborsRegressor( n_jobs=-1), param_grid = parameters, scoring='r2')
+                        clf = knn.KNeighborsRegressor( n_jobs=-1)
                         
                     print ('Ready to run %s_%s_%s_%s' %(model,r_type,r_id, grouper))
                     start = time.time()
-                    clf.fit(features[train],response[train])
+                    
+                    clf = mlf.gridSeach(clf, parameters, features, response, train, test)
                     
                     running_time = time.time() - start
                     print(running_time)
@@ -154,20 +154,20 @@ for grouper in [ '30min','15min']:
                     
             if strategy == 'DIR':
     
-                for j in range(0,3):
+                for j in range(1,2):
                     
                     if j == 0:
                         parameters = {'hidden_layer_sizes':[(600,300),(600,300,100)], 'activation': ('logistic','relu'), 'alpha': [1e-3,1e-4,1e-5],'tol':[1e-4,1e-5]}
-                        clf = GridSearchCV(neural_network.MLPRegressor(learning_rate_init=0.0001,verbose=True ,batch_size=4000), param_grid = parameters, scoring='r2')
+                        clf = neural_network.MLPRegressor(learning_rate_init=0.0001,verbose=True ,batch_size=4000)
                         model = 'NN'
                     if j == 1:
                         parameters = {'max_depth': [30,50,70]}
-                        clf = GridSearchCV(RandomForestRegressor(max_depth=30, n_jobs=-1), param_grid = parameters, scoring='r2')
+                        clf = RandomForestRegressor( n_jobs=-1)
                         model = 'RandFor'
                     if j== 2:
                         model = 'KNNR'
                         parameters = {'n_neighbors':[5, 20, 50, 100], 'weights': ('uniform', 'distance')}
-                        clf = GridSearchCV(knn.KNeighborsRegressor( n_jobs=-1), param_grid = parameters, scoring='r2')
+                        clf = knn.KNeighborsRegressor( n_jobs=-1)
           
                     predict = pd.DataFrame()
                     r2 = ['R2']
@@ -177,10 +177,12 @@ for grouper in [ '30min','15min']:
                     for i in range(h):
                         print ('Ready to run %s_%s_%s_t%d' %(model,r_type,r_id,(i+1)))
 
+                        clf = mlf.gridSeach(clf, parameters, features, response[:,i], train, test)
+                    
                         clf.fit(features[train],response[train,i])
                         
                         # print(clf.score(features[test],response[test]))
-                        joblib.dump(clf, os.path.join(wd,'MODELS','%s_%s_%s_t%d.pkl' %( model, r_type,r_id,(i+1))))
+                        joblib.dump(clf, os.path.join(wd,'MODELS','%s_%s_%s_%s_t%d.pkl' %( model, r_type,r_id,grouper,(i+1))))
 
                         prediction = pd.DataFrame(clf.predict(features[test]), columns= ['t_%i'%(i+1)])
     
@@ -220,20 +222,20 @@ for grouper in [ '30min','15min']:
                     
             if strategy == 'REC':
                 
-                for j in range(0,3):
+                for j in range(1,2):
 
                     if j == 0:
                         parameters = {'hidden_layer_sizes':[(600,300),(600,300,100)], 'activation': ('logistic','relu'), 'alpha': [1e-3,1e-4,1e-5],'tol':[1e-4,1e-5]}
-                        clf = GridSearchCV(neural_network.MLPRegressor( learning_rate_init=0.0001,verbose=True ,batch_size=4000), param_grid = parameters, scoring='r2')
+                        clf = neural_network.MLPRegressor( learning_rate_init=0.0001,verbose=True ,batch_size=4000)
                         model = 'NN'
                     if j == 1:
                         parameters = {'max_depth': [30,50,70]}
-                        clf = GridSearchCV(RandomForestRegressor(max_depth=30, n_jobs=-1, oob_score =True), param_grid = parameters, scoring='r2')
+                        clf = RandomForestRegressor(n_jobs=-1)
                         model = 'RandFor'
                     if j== 2:
                         model = 'KNNR'
                         parameters = {'n_neighbors':[5, 20, 50, 100], 'weights': ('uniform', 'distance')}
-                        clf = GridSearchCV(knn.KNeighborsRegressor( n_jobs=-1), param_grid = parameters, scoring='r2')
+                        clf = knn.KNeighborsRegressor( n_jobs=-1)
                         
                     r2 = ['R2']
                     mae = ['MAE']
@@ -242,19 +244,20 @@ for grouper in [ '30min','15min']:
                     print ('Ready to run %s_%s_%s_t%d' %(model,r_type,r_id,(1)))
                     start = time.time()
                     
-                    clf.fit(features[train],response[train,0])
+                    clf, model_matrix = mlf.gridSeach(clf, parameters, features, response[:,0], train, test)
+                    
                     print(clf)
 
-                    joblib.dump(clf,os.path.join(wd,'MODELS','%s_%s_%s_t1.pkl' %( model, r_type,r_id)))
+                    joblib.dump(clf,os.path.join(wd,'MODELS','%s_%s_%s_%s_t1.pkl' %( model, r_type,r_id,grouper)))
                     
                     predict = pd.DataFrame()
-                    feat = pd.DataFrame(features).values
+                    feat = pd.DataFrame(features)
                     for i in range(h):
                         print('predicting %s' %(i+1))
 
-                        feat[test[(i+1):-(h-i)],(h-i)] = clf.predict(feat[test[i:-(h+1-i)],:])
+                        feat.ix[test[(i+1):-(h-i)],(feat.shape[1]-1-i)] = clf.predict(feat.ix[test[i:-(h+1-i)],:])
                         
-                    predict = pd.DataFrame(np.flip(feat[test[(h+1):],:h],1))
+                    predict = pd.DataFrame(np.fliplr(feat.ix[test[(h+1):],(feat.shape[1]-h):]))
                     predict.columns = ['t_%i' %(i+1) for i in range(h)]
 
                     running_time = time.time() - start
@@ -289,10 +292,82 @@ for grouper in [ '30min','15min']:
                     predict['strategy'] = strategy
                     predict['model'] = model
                     predict['type'] = r_type
-                    predictions = predictions.append(predict.ix[h+1,:])
+                    predictions = predictions.append(predict.ix[:,:])
                     predictions.to_csv(forecast_path)
                     del  mae, mape, r2, r
                     
+            if strategy == 'DIRMO':
+                
+                len_models = [6]
+                for j in range(1,2):
+                    
+                    if j == 0:
+                        parameters = {'hidden_layer_sizes':[(600,300),(600,300,100)], 'activation': ('logistic','relu'), 'alpha': [1e-3,1e-4,1e-5],'tol':[1e-4,1e-5]}
+                        clf = neural_network.MLPRegressor(learning_rate_init=0.0001,verbose=True ,batch_size=4000)
+                        model = 'NN'
+                    if j == 1:
+                        parameters = {'max_depth': [30,50,70]}
+                        clf = RandomForestRegressor( n_jobs=-1)
+                        model = 'RandFor'
+                    if j== 2:
+                        model = 'KNNR'
+                        parameters = {'n_neighbors':[5, 20, 50, 100], 'weights': ('uniform', 'distance')}
+                        clf = knn.KNeighborsRegressor( n_jobs=-1)
+          
+                    predict = pd.DataFrame()
+                    r2 = ['R2']
+                    mae = ['MAE']
+                    mape = ['MAPE']
+                    start = time.time()
+                    
+                    for s in len_models:
+                        n = int(h/s)
+                        for i in range(n):
+                            print( range((i*s),((i+1)*s)))
+                            print ('Ready to run %s_%s_%s_t%d' %(model,r_type,r_id,((i+1)*s)))
+    
+                            clf, model_matrix = mlf.gridSeach(clf, parameters, features, response[:,(i*s):((i+1)*s)], train, test)
+                        
+                            clf.fit(features[train],response[train,(i*s):((i+1)*s)])
+                            
+                            # print(clf.score(features[test],response[test]))
+#                            joblib.dump(clf, os.path.join(wd,'MODELS','%s_%s_%s_%s_t%d.pkl' %( model, r_type,r_id,grouper,(i+1)*s)))
+    
+                            prediction = pd.DataFrame(clf.predict(features[test]), columns= ['t_%i'%(j+1) for j in range((i*s),((i+1)*s))])
+        
+                            predict = pd.concat([predict,prediction],axis=1)
+        
+                            for measure in ['R2', 'MAE', 'MAPE']:
+                                if measure == 'R2':
+                                    r2.extend(r2_score(response[test,(i*s):((i+1)*s)], prediction, multioutput = 'raw_values'))
+                                if measure == 'MAE':
+                                    mae.extend(mean_absolute_error(response[test,(i*s):((i+1)*s)], prediction, multioutput = 'raw_values'))
+                                if measure == 'MAPE':
+                                    mape.extend([np.mean((np.abs(response[test,(i*s):((i+1)*s)] - prediction)/ response[test,(i*s):((i+1)*s)]), axis=0)])
+                        
+                        running_time = time.time() - start
+                        print(running_time/60)
+                        c = ['measure']
+                        c.extend(['t_%i' %(i+1) for i in range(h)])
+                        r = pd.DataFrame([r2,mae,mape], columns =c)
+                      
+                        r['feed']= r_id
+                        r['strategy'] = strategy
+                        r['model'] = model
+                        r['type'] = r_type
+                        r['time'] = running_time
+                        results = results.append(r)
+         
+                        results.to_csv(results_path)
+        
+                        predict['feed']= r_id
+                        predict['strategy'] = strategy
+                        predict['model'] = model
+                        predict['type'] = r_type
+                        predictions = predictions.append(predict)
+                        predictions.to_csv(forecast_path)
+                        
+                        del (c, r2, mae, mape, r)
         # Compound Model 
         
         # Un normalize
