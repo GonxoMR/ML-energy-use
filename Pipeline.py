@@ -331,7 +331,7 @@ for grouper in [ '30min','15min']:
                             clf.fit(features[train],response[train,(i*s):((i+1)*s)])
                             
                             # print(clf.score(features[test],response[test]))
-#                            joblib.dump(clf, os.path.join(wd,'MODELS','%s_%s_%s_%s_t%d.pkl' %( model, r_type,r_id,grouper,(i+1)*s)))
+                            joblib.dump(clf, os.path.join(wd,'MODELS','%s_%s_%s_%s_t%d.pkl' %( model, r_type,r_id,grouper,(i*s)+1)))
     
                             prediction = pd.DataFrame(clf.predict(features[test]), columns= ['t_%i'%(j+1) for j in range((i*s),((i+1)*s))])
         
