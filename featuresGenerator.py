@@ -109,7 +109,7 @@ def featureCreation(feed, window, h, grouper, dataDir, apiDic, r_id = None, long
             weather = weather.interpolate()
             
             if weather.index.max() < feed.index.max():
-                feed = feed[:weather.index.max(),:]
+                feed = feed.ix[:weather.index.max(),:]
             
             weather = weather[feed.index[(window + h-1)]:feed.index.max()]
             
