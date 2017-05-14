@@ -56,8 +56,7 @@ def featureCreation(feed, window, h, grouper, dataDir, apiDic, r_id = None, long
 
     if longestfeed == False:
 #        print(feed.ix[feed.first_valid_index():, 0])
-        features, response = mlf.ts_to_mimo(feed.ix[feed.first_valid_index():, 0], window, h)
-    
+        
         for index, row in apiDic.loc[(apiDic['id']==int(r_id)), ['key','lat_long']].iterrows():
             
             weather = pd.DataFrame.from_csv(os.path.join(dataDir,'WEATHER_DATA','%s.csv'  %row['lat_long'].replace(" ", "")))
@@ -107,13 +106,16 @@ def featureCreation(feed, window, h, grouper, dataDir, apiDic, r_id = None, long
             weather.windchillm = weather.windchillm.fillna(weather.tempm)
             
             weather = weather.interpolate()
-            
-            if weather.index.max() < feed.index.max():
-                feed = feed.ix[:weather.index.max(),:]
-            
+                    
             weather = weather[feed.index[(window + h-1)]:feed.index.max()]
             
+            if weather.index.max() < feed.index.max():
+                feed = feed.ix[weather.index.min():weather.index.max(),:]
+                
             weather = weather.values
+            print(weather.shape, feed.shape)
+            
+            features, response = mlf.ts_to_mimo(feed.ix[feed.first_valid_index():, 0], window, h)
             
             features = np.concatenate((feed.ix[(window + h -1):, ('isworkingday',grouper,'hourofday','dayofweek','month')],weather, features), axis=1)
     
