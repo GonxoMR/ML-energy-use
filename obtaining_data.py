@@ -41,7 +41,7 @@ def getting_saving_data(dataDir, secretsDir, apiDic, dataFile):
     			# Checking if the obtained data stream has the same value as the last observation in the server. 
                 if array[-1] != float(meta['value']):
                     print("Error: The last value of the array do not match the last value obtained from the feed: "+str(row['id']))
-                    print('Last value array: %i\nLast value feed: %i' %(array[-1],meta['value']))
+                    print('Last value array: %i\nLast value feed: %i' %(array[-1],float(meta['value'])))
                     print(time.time())
     			# Giving time to the data observations
                 df = pd.DataFrame({"watts":array},index= pd.date_range(pd.to_datetime(start_point+10, unit='s'),pd.to_datetime(end_point, unit='s'), freq='10S'))
