@@ -113,10 +113,10 @@ def featureCreation(feed, window, h, grouper, dataDir, apiDic, r_id = None, long
                 feed = feed.ix[weather.index.min():weather.index.max(),:]
                 
             weather = weather.values
-            print(weather.shape, feed.shape)
             
             features, response = mlf.ts_to_mimo(feed.ix[feed.first_valid_index():, 0], window, h)
             
+            print(weather.shape, feed.shape, features.shape)
             features = np.concatenate((feed.ix[(window + h -1):, ('isworkingday',grouper,'hourofday','dayofweek','month')],weather, features), axis=1)
     
     else:
