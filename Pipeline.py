@@ -119,7 +119,7 @@ for grouper in [ '30min','15min']:
                     print ('Ready to run %s_%s_%s_%s' %(model,r_type,r_id, grouper))
                     start = time.time()
                     
-                    clf = mlf.gridSeach(clf, parameters, features, response, train, test)
+                    clf, model_matrix = mlf.gridSeach(clf, parameters, features, response, train, test)
                     
                     running_time = time.time() - start
                     print(running_time)
@@ -178,7 +178,7 @@ for grouper in [ '30min','15min']:
                     for i in range(h):
                         print ('Ready to run %s_%s_%s_t%d' %(model,r_type,r_id,(i+1)))
 
-                        clf = mlf.gridSeach(clf, parameters, features, response[:,i], train, test)
+                        clf, model_matrix = mlf.gridSeach(clf, parameters, features, response[:,i], train, test)
                     
                         clf.fit(features[train],response[train,i])
                         
