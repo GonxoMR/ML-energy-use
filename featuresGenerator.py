@@ -53,6 +53,7 @@ def featureCreation(feed, window, h, grouper, dataDir, apiDic, r_id = None, long
     feed['isworkingday'] = f(feed.index.date)
   
 # Weather data
+    features, response = mlf.ts_to_mimo(feed.ix[feed.first_valid_index():, 0], window, h)            
 
     if longestfeed == False:
 #        print(feed.ix[feed.first_valid_index():, 0])
@@ -81,8 +82,7 @@ def featureCreation(feed, window, h, grouper, dataDir, apiDic, r_id = None, long
             # Droping duplicates
             weather = weather.drop_duplicates(subset='cleandate')
             
-            weather = weather.reindex(pd.date_range(weather['cleandate'].min(), weather['cleandate'].max(), freq=grouper)
-                                      , method='backfill')
+            weather = weather.reindex(pd.date_range(weather['cleandate'].min(), weather['cleandate'].max(), freq=grouper))#, method='backfill')
             
             weather['heatindex'] = weather.apply(lambda x: heat_index(Temp(x['tempi'],'f'),x['hum']), axis=1).astype('float')
             
@@ -106,19 +106,21 @@ def featureCreation(feed, window, h, grouper, dataDir, apiDic, r_id = None, long
             weather.windchillm = weather.windchillm.fillna(weather.tempm)
             
             weather = weather.interpolate()
-                    
-            weather = weather[feed.index[(window + h-1)]:feed.index.max()]
             
-            if weather.shape[0] < feed.shape[0]:
-                feed = feed.ix[weather.index.min():weather.index.max(),:]
-                
-            weather = weather.values
-            
-            features, response = mlf.ts_to_mimo(feed.ix[feed.first_valid_index():, 0], window, h)
-            
-            print(weather.shape, feed.shape, features.shape)
-            features = np.concatenate((feed.ix[(window + h -1):, ('isworkingday',grouper,'hourofday','dayofweek','month')],weather, features), axis=1)
-    
+            if (weather.shape[0] < feed.shape[0]):
+                if (feed.shape[0] - weather.shape[0] < (window + h)):
+                    features = features[max(feed.index.get_loc(weather.index.min()-(window + h - 1)),0):feed.index.get_loc(weather.index.max()), :]
+                    feed = feed.ix[weather.index.min():weather.index.max(),:]
+                else:
+                    features = features[feed.index.get_loc(weather.index.min()):(feed.index.get_loc(weather.index.max())+1), :]
+                    feed = feed.ix[weather.index.min():weather.index.max(),:]
+                    features = np.concatenate((feed.ix[:, ('isworkingday',grouper,'hourofday','dayofweek','month')],weather, features), axis=1)
+            else:
+                weather = weather.loc[feed.index[(window + h-1)]:feed.index.max()]
+
+                weather = weather.values
+                features = np.concatenate((feed.ix[(window + h -1):, ('isworkingday',grouper,'hourofday','dayofweek','month')],weather, features), axis=1)
+            print('Features created')
     else:
         
         features, response = mlf.ts_to_mimo(feed.ix[feed.first_valid_index():, 0], window, h)
