@@ -55,3 +55,18 @@ def getting_saving_data(dataDir, secretsDir, apiDic, dataFile):
                 print("Error: The number of elements recieved is: %i which is not multiple of 4. Decodification is not posible. Feed: %i" %(len(response.content), row['id']))
     store.close()
     apiDic.to_csv(os.path.join(secretsDir,'apiKeyDictionary.csv' ))
+
+import os
+import pandas as pd
+wd = os.getcwd()
+# Set up the destination  and secrects directory
+# Set up the destination directory
+dataDir = os.path.join(wd,'DATA_DIRECTORY') 
+
+# User Apikey and feed ids are neccesary to get the feed's data.
+# Writting and reading Apikeys are needed in case there is not a reading apikey bypass. 
+# Direct to 'apiKeyDictionary.csv' location.
+secretsDir = os.path.join(wd,'SECRETS_DIRECTORY')
+apiDic = pd.read_csv(os.path.join(secretsDir,'apiKeyDictionary.csv'),sep=None, engine='python')
+dataFile = 'raw_feed'
+getting_saving_data(dataDir, secretsDir, apiDic, dataFile)
