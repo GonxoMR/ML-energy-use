@@ -33,7 +33,7 @@ apiDic = pd.read_csv(os.path.join(secretsDir,'apiKeyDictionary.csv'),sep=None, e
 dataFile = 'raw_feed'
 
 # If you already have downloaded the data set to False.
-fetch_data = True
+fetch_data = False
 fetch_weather_data = False
 
 if fetch_data:
