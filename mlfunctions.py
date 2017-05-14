@@ -165,8 +165,7 @@ def cleaning_nans(feed, r_type):
 def aggregation(r_key,r_type,r_id, sourceFile, apiDic):
     """
      Loading relevant data and after removing NaNs it adds grid power to solar power. 
-     House consumption = Grid power + solar power
-    
+     House consumption = Grid power + solar power 
     """
     
     with pd.HDFStore(sourceFile) as hdf:
@@ -174,27 +173,28 @@ def aggregation(r_key,r_type,r_id, sourceFile, apiDic):
                
     if (('/%s_%s' %(r_type,r_id) in keys)):
         
-        if (r_type == 'house_consumption') or (r_type == 'solar_power'):
+#        if (r_type == 'house_consumption') or (r_type == 'solar_power'):
 
 #           Original series
-            result = pd.read_hdf(sourceFile, '%s_%s' %(r_type,r_id))
-            
-            result = cleaning_nans(result, r_type)
+        result = pd.read_hdf(sourceFile, '%s_%s' %(r_type,r_id))
+        result = result.ix[result.index > pd.datetime(2014,1,1),:]
+        
+        result = cleaning_nans(result, r_type)
 #            result = result.groupby(pd.TimeGrouper('W')).transform( lambda x: x.fillna(x.mean()))
             
-      
-        elif (r_type=='grid_power'):
-#                print(str(r_type)+'_'+r_id)
-            grid_feed = pd.read_hdf(sourceFile, '%s_%s' %(r_type,r_id))
-            grid_feed = cleaning_nans(grid_feed, r_type)
-#            grid_feed = grid_feed.groupby(pd.TimeGrouper('W')).transform( lambda x: x.fillna(x.mean()))
-            solar_id = apiDic.ix[(apiDic['key'] == r_key) & (apiDic['type'] == 'solar_power')]['id'].values[0]
-            solar_feed = pd.read_hdf(sourceFile, 'solar_power_%s' %str(solar_id))
-            solar_feed = cleaning_nans(solar_feed, r_type)
-#            solar_feed = solar_feed.groupby(pd.TimeGrouper('W')).transform( lambda x: x.fillna(x.mean()))
-            result = grid_feed+solar_feed
-        
-    return result
+#      
+#        elif (r_type=='grid_power'):
+##                print(str(r_type)+'_'+r_id)
+#            grid_feed = pd.read_hdf(sourceFile, '%s_%s' %(r_type,r_id))
+#            grid_feed = cleaning_nans(grid_feed, r_type)
+##            grid_feed = grid_feed.groupby(pd.TimeGrouper('W')).transform( lambda x: x.fillna(x.mean()))
+#            solar_id = apiDic.ix[(apiDic['key'] == r_key) & (apiDic['type'] == 'solar_power')]['id'].values[0]
+#            solar_feed = pd.read_hdf(sourceFile, 'solar_power_%s' %str(solar_id))
+#            solar_feed = cleaning_nans(solar_feed, r_type)
+##            solar_feed = solar_feed.groupby(pd.TimeGrouper('W')).transform( lambda x: x.fillna(x.mean()))
+#            result = grid_feed+solar_feed
+#        
+        return result
 
 
 def seasonalANOVA(HC, period='month'):

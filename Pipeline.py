@@ -30,7 +30,7 @@ dataDir = os.path.join(wd,'DATA_DIRECTORY')
 # Direct to 'apiKeyDictionary.csv' location.
 secretsDir = os.path.join(wd,'SECRETS_DIRECTORY')
 apiDic = pd.read_csv(os.path.join(secretsDir,'apiKeyDictionary.csv'),sep=None, engine='python')
-dataFile = 'raw_feeds'
+dataFile = 'raw_feed'
 
 # If you already have downloaded the data set to False.
 fetch_data = True
