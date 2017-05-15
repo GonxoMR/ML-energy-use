@@ -195,7 +195,7 @@ for grouper in [ '30min','15min']:
                             if measure == 'MAE':
                                 mae.extend(mean_absolute_error(response[test,i], prediction, multioutput = 'raw_values'))
                             if measure == 'MAPE':
-                                mape.extend(np.mean((np.abs(response[test,i] - prediction)/ response[test,i]), axis=0))
+                                mape.extend(np.mean((np.abs(response[test,i] - prediction.transpose())/ response[test,i]), axis=1))
                     
                     running_time = time.time() - start
                     print()
@@ -343,7 +343,7 @@ for grouper in [ '30min','15min']:
                                 if measure == 'MAE':
                                     mae.extend(mean_absolute_error(response[test,(i*s):((i+1)*s)], prediction, multioutput = 'raw_values'))
                                 if measure == 'MAPE':
-                                    mape.extend([np.mean((np.abs(response[test,(i*s):((i+1)*s)] - prediction)/ response[test,(i*s):((i+1)*s)]), axis=0)])
+                                    mape.extend(np.mean((np.abs(response[test,(i*s):((i+1)*s)] - prediction)/ response[test,(i*s):((i+1)*s)]), axis=0))
                         
                         running_time = time.time() - start
                         print(running_time/60)
