@@ -29,7 +29,7 @@ dataDir = os.path.join(wd,'DATA_DIRECTORY')
 # Writting and reading Apikeys are needed in case there is not a reading apikey bypass. 
 # Direct to 'apiKeyDictionary.csv' location.
 secretsDir = os.path.join(wd,'SECRETS_DIRECTORY')
-apiDic = pd.read_csv(os.path.join(secretsDir,'apiKeyDictionary.csv'),sep=None, engine='python')
+apiDic = pd.DataFrame.from_csv(os.path.join(secretsDir,'apiKeyDictionary.csv'),sep=None)
 dataFile = 'raw_feed'
 
 # If you already have downloaded the data set to False.
@@ -54,8 +54,8 @@ for grouper in [ '30min','15min']:
         h = 48
         
     # Saving Results object
-    results_path = os.path.join(dataDir,'RESULTS','%s.csv' %grouper)
-    forecast_path = os.path.join(dataDir,'FORECAST','%s.csv' %grouper)
+    results_path = os.path.join(dataDir,'RESULTS','%s_1.csv' %grouper)
+    forecast_path = os.path.join(dataDir,'FORECAST','%s_1.csv' %grouper)
     columns = ['feed','type','strategy','model', 'measure', 'time']
     
     for i  in range(h):
@@ -65,7 +65,7 @@ for grouper in [ '30min','15min']:
     del predictions['measure']
 
     # This is new
-    for index, row in apiDic.ix[8:9,['key','type','id']].iterrows():
+    for index, row in apiDic.ix[9:9,['key','type','id']].iterrows():
 
         r_type = str(row['type']) 
         r_id = str(row['id'])
@@ -195,7 +195,7 @@ for grouper in [ '30min','15min']:
                             if measure == 'MAE':
                                 mae.extend(mean_absolute_error(response[test,i], prediction, multioutput = 'raw_values'))
                             if measure == 'MAPE':
-                                mape.extend([np.mean((np.abs(response[test,i] - prediction.transpose())/ response[test,i]), axis=0)])
+                                mape.extend(np.mean((np.abs(response[test,i] - prediction)/ response[test,i]), axis=0))
                     
                     running_time = time.time() - start
                     print()
