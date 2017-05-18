@@ -7,7 +7,7 @@ Created on Wed Mar 15 16:03:20 2017
 @author: Gonxo
 """
 import pandas as pd
-from pandas.tseries.offsets import *
+import numpy as np 
 
 def getting_saving_data(dataDir, secretsDir, apiDic, dataFile):
     """
@@ -17,16 +17,15 @@ def getting_saving_data(dataDir, secretsDir, apiDic, dataFile):
     """
     import requests
     import numpy as np
-    import pandas as pd
     import time
     types = np.unique(apiDic['type'])
     # Creating a saving file
     store = pd.HDFStore('%s\\%s.h5' %(dataDir, dataFile))
     
     # Looping for all types of feed
-    for type in types:
+    for typ in types:
     
-        for index, row in apiDic.loc[(apiDic['type']==type),['key','id']].iterrows():
+        for index, row in apiDic.loc[(apiDic['type']==typ),['key','id']].iterrows():
     		
     		# NOTE: adding troubleshooting might be interesting. 
     		# Obtaining streamed data
@@ -64,7 +63,7 @@ def getting_saving_data(dataDir, secretsDir, apiDic, dataFile):
                 apiDic.loc[index, 'end'] = end_point	
                 
             # Saving individual data frames into the hf5 file. Each feed is individually saved with its type.
-                store['%s_%s' %(type,row['id'])] = df
+                store['%s_%s' %(typ,row['id'])] = df
     							
             else:
                 print("Error: The number of elements recieved is: %i which is not multiple of 4. Decodification is not posible. Feed: %s" %(len(response.content), row['id']))
@@ -77,7 +76,6 @@ def cleanBeggining(feed):
     (abs(measurements(t1)) <= 25 and measurement(t2) = 0)
             
     """
-    import pandas as pd 
     from pandas.tseries.offsets import Second
     
     feed = pd.DataFrame(feed)
@@ -96,8 +94,7 @@ def cleaning_nans(feed, r_type):
     This function gives back a feed clean of Nas to be use in the later procedures.
     
     """
-    import numpy as np 
-    import pandas as pd 
+
 
 #    from pandas.tseries.offsets import *
     # Deleting NaNs at the beggining and end of te series.
@@ -105,18 +102,20 @@ def cleaning_nans(feed, r_type):
     first = feed.first_valid_index()
     last = feed.last_valid_index()
     feed = feed.loc[first:last]
-
+    
 #   Negative values in house_consumption or grid_power are considered as errors and deleted.
-    if ( r_type == 'house_consumption'):
+    if(r_type == 'house_consumption'):
         feed.ix[feed.ix[:,0] < 0, 'watts'] = np.nan
-        
+    if(r_type == 'solar_power'):
+        feed.ix[feed.ix[:,0] < 0, 'watts'] = 0.00001
+
 #	 1. Removing NA's by coercing the 15 min group mean
     no_Nas = feed.groupby(pd.TimeGrouper(freq='15min')).transform(lambda x: x.fillna(x.mean()))
-    
+
 #   2.Deleting NaNs at the beggining of the series after removing some erroneous observations
     first = cleanBeggining(no_Nas)
     no_Nas = no_Nas.loc[first:last]
-    
+
 #   3. This retrieves the blocks of Nan in the even groups.
 #    block = (no_Nas.notnull().shift(1) !=  no_Nas.notnull()).astype(int).cumsum()
 #    no_Nas = pd.concat([no_Nas, block], axis=1)
@@ -207,6 +206,8 @@ def seasonalANOVA(HC, period='month'):
     """
     
     import scipy.stats as stats
+    HC = pd.DataFrame(HC, index = HC.index)
+    
     
     if period == 'quarterhourofday':
         
@@ -217,61 +218,79 @@ def seasonalANOVA(HC, period='month'):
             array.append( HC.loc[HC['quarterhourofday']== counter].values)
             counter += 1
         
-        return (stats.f_oneway( HC.loc[HC['quarterhourofday']==0], HC.loc[HC['quarterhourofday']==1], HC.loc[HC['quarterhourofday']==2], HC.loc[HC['quarterhourofday']==3], HC.loc[HC['quarterhourofday']==4],
-                                               HC.loc[HC['quarterhourofday']==5], HC.loc[HC['quarterhourofday']==6], HC.loc[HC['quarterhourofday']==7], HC.loc[HC['quarterhourofday']==8], HC.loc[HC['quarterhourofday']==9],
-                                               HC.loc[HC['quarterhourofday']==10], HC.loc[HC['quarterhourofday']==11], HC.loc[HC['quarterhourofday']==12], HC.loc[HC['quarterhourofday']==13], HC.loc[HC['quarterhourofday']==14],
-                                               HC.loc[HC['quarterhourofday']==15], HC.loc[HC['quarterhourofday']==16], HC.loc[HC['quarterhourofday']==17], HC.loc[HC['quarterhourofday']==18], HC.loc[HC['quarterhourofday']==19],
-                                               HC.loc[HC['quarterhourofday']==20], HC.loc[HC['quarterhourofday']==21], HC.loc[HC['quarterhourofday']==22], HC.loc[HC['quarterhourofday']==23], HC.loc[HC['quarterhourofday']==24],
-                                               HC.loc[HC['quarterhourofday']==25], HC.loc[HC['quarterhourofday']==26], HC.loc[HC['quarterhourofday']==27], HC.loc[HC['quarterhourofday']==28], HC.loc[HC['quarterhourofday']==29],
-                                               HC.loc[HC['quarterhourofday']==30], HC.loc[HC['quarterhourofday']==31], HC.loc[HC['quarterhourofday']==32], HC.loc[HC['quarterhourofday']==33], HC.loc[HC['quarterhourofday']==34],
-                                               HC.loc[HC['quarterhourofday']==35], HC.loc[HC['quarterhourofday']==36], HC.loc[HC['quarterhourofday']==37], HC.loc[HC['quarterhourofday']==38], HC.loc[HC['quarterhourofday']==39],
-                                               HC.loc[HC['quarterhourofday']==40], HC.loc[HC['quarterhourofday']==41], HC.loc[HC['quarterhourofday']==42], HC.loc[HC['quarterhourofday']==43], HC.loc[HC['quarterhourofday']==44],
-                                               HC.loc[HC['quarterhourofday']==45], HC.loc[HC['quarterhourofday']==46], HC.loc[HC['quarterhourofday']==47], HC.loc[HC['quarterhourofday']==48], HC.loc[HC['quarterhourofday']==49],
-                                               HC.loc[HC['quarterhourofday']==50], HC.loc[HC['quarterhourofday']==51], HC.loc[HC['quarterhourofday']==52], HC.loc[HC['quarterhourofday']==53], HC.loc[HC['quarterhourofday']==54],
-                                               HC.loc[HC['quarterhourofday']==55], HC.loc[HC['quarterhourofday']==56], HC.loc[HC['quarterhourofday']==57], HC.loc[HC['quarterhourofday']==58], HC.loc[HC['quarterhourofday']==59],
-                                               HC.loc[HC['quarterhourofday']==60], HC.loc[HC['quarterhourofday']==61], HC.loc[HC['quarterhourofday']==62], HC.loc[HC['quarterhourofday']==63], HC.loc[HC['quarterhourofday']==64],
-                                               HC.loc[HC['quarterhourofday']==65], HC.loc[HC['quarterhourofday']==66], HC.loc[HC['quarterhourofday']==67], HC.loc[HC['quarterhourofday']==68], HC.loc[HC['quarterhourofday']==69],
-                                               HC.loc[HC['quarterhourofday']==70], HC.loc[HC['quarterhourofday']==71], HC.loc[HC['quarterhourofday']==72], HC.loc[HC['quarterhourofday']==73], HC.loc[HC['quarterhourofday']==74],
-                                               HC.loc[HC['quarterhourofday']==75], HC.loc[HC['quarterhourofday']==76], HC.loc[HC['quarterhourofday']==77], HC.loc[HC['quarterhourofday']==78], HC.loc[HC['quarterhourofday']==79],
-                                               HC.loc[HC['quarterhourofday']==80], HC.loc[HC['quarterhourofday']==81], HC.loc[HC['quarterhourofday']==82], HC.loc[HC['quarterhourofday']==83], HC.loc[HC['quarterhourofday']==84],
-                                               HC.loc[HC['quarterhourofday']==85], HC.loc[HC['quarterhourofday']==86], HC.loc[HC['quarterhourofday']==87], HC.loc[HC['quarterhourofday']==88], HC.loc[HC['quarterhourofday']==79],
-                                               HC.loc[HC['quarterhourofday']==90], HC.loc[HC['quarterhourofday']==91], HC.loc[HC['quarterhourofday']==92], HC.loc[HC['quarterhourofday']==93], HC.loc[HC['quarterhourofday']==74],
-                                               HC.loc[HC['quarterhourofday']==95]))
+        watts = HC.columns[0]
+        return (stats.f_oneway( *[HC.loc[HC['quarterhourofday']==i, watts] for i in range(96)]))
+    
+    if period == 'halfhourofday':
+        
+        counter = 0
+        array = []
+        for i in pd.date_range('00:00', '23:45', freq='30min'):
+            HC.loc[(HC.index.hour == i.hour) & (HC.index.minute == i.minute),'halfhourofday'] = counter
+            array.append( HC.loc[HC['halfhourofday']== counter].values)
+            counter += 1
+        
+        watts = HC.columns[0]
+        return (stats.f_oneway( *[HC.loc[HC['halfhourofday']==i, watts] for i in range(49)]))
+
     elif period == 'dayofweek':
         
         HC['dayofweek'] = HC.index.dayofweek
-        
-        return (stats.f_oneway(HC.loc[HC['dayofweek']== 0], HC.loc[HC['dayofweek']== 1], 
-                                               HC.loc[HC['dayofweek']== 2], HC.loc[HC['dayofweek']== 3], 
-                                               HC.loc[HC['dayofweek']== 4], HC.loc[HC['dayofweek']== 5],
-                                               HC.loc[HC['dayofweek']== 6]))
+        watts = HC.columns[0]
+        return (stats.f_oneway( *[HC.loc[HC['dayofweek']==i, watts] for i in range(7)]))
+
     elif period == 'month':
         
         HC['month'] = HC.index.month
-        
-        return (stats.f_oneway(HC.loc[HC['month']== 1], HC.loc[HC['month']== 2],
-                                               HC.loc[HC['month']== 8],
-                                               HC.loc[HC['month']== 9], HC.loc[HC['month']== 10],
-                                               HC.loc[HC['month']== 11], HC.loc[HC['month']== 12]))
+        watts = HC.columns[0]
+        return (stats.f_oneway( *[HC.loc[HC['month']==i, watts] for i in range(1,13)]))
+
+    elif period == 'weekofyear':
+        HC['weekofyear'] = HC.index.weekofyear
+        watts = HC.columns[0]
+        return (stats.f_oneway( *[HC.loc[HC['weekofyear']==i, watts] for i in range(1,54)]))
+ 
+    elif period == 'semester':
+        HC['semester'] = [get_semester(x) for x in HC.index]
+        watts = HC.columns[0]
+        return (stats.f_oneway(HC.loc[HC['semester']== 0, watts], HC.loc[HC['semester']== 1]))
     
-    
+    elif period == 'dayofyear':
+        HC['dayofyear'] = HC.index.dayofyear
+        watts = HC.columns[0]
+        return (stats.f_oneway( *[HC.loc[HC['dayofyear']==i, watts] for i in range(367)]))
+
+    elif period == 'quarter':
+        HC['quarter'] = HC.index.quarter
+        watts = HC.columns[0]
+        return (stats.f_oneway( *[HC.loc[HC['quarter']==i, watts] for i in range(1,4)]))
     else:
         print('Error: the options for period are quarterhourofday, dayofweek or month')
 
 
-def quarterofhour(feed):
+def quarterofhour(feed,grouper):
     feed = pd.DataFrame(feed)
     counter = 0
     array = []
-    for i in pd.date_range('00:00', '23:45', freq='15min'):
+    for i in pd.date_range('00:00', '23:45', freq=grouper):
         feed.loc[(feed.index.hour == i.hour) & (feed.index.minute == i.minute),'quarterhourofday'] = counter
         array.append( feed.loc[feed['quarterhourofday']== counter].values)
         counter += 1
 
     return(feed)
 
+def get_semester(now):
+    if (now.month <= 6):
+        return 0
+    else:
+        return 1
+def get_wintermonths(now):
+    if (now.month >= 4 and now.month<=9):
+        return 0
+    else:
+        return 1
 
-def deseasonalize(feed, r_id, plot= False):
+def deseasonalize(feed, r_id, grouper, plot= False):
     """
      This function deseasonalizes a time series based on a period of quarter of hour, 
      day of the week and month of the year. 
@@ -289,10 +308,17 @@ def deseasonalize(feed, r_id, plot= False):
 
     feed.columns = [r_id]
     
-    feed = quarterofhour(feed)
+    feed = quarterofhour(feed, grouper)
     feed['dayofweek'] = feed.index.dayofweek
     feed['month'] = feed.index.month
-    for i in range(3):
+    feed['quarter'] = feed.index.quarter
+    feed['dayofyear'] = feed.index.dayofyear
+    feed['weekofyear'] = feed.index.weekofyear
+    feed['semester'] = [get_semester(x) for x in feed.index]
+    feed['wintermonths'] = [get_wintermonths(x) for x in feed.index]
+    
+    
+    for i in range(5):
 
         if i == 0:
             aggPeriod = 'D'
@@ -305,15 +331,40 @@ def deseasonalize(feed, r_id, plot= False):
         elif i == 1:
             aggPeriod = granularity = 'W'
             grouper = 'dayofweek'
-            winSize = 200
+            winSize = 300
             std = 100
+        
+#        elif i == 2:
+#            aggPeriod = granularity = 'DY'
+#            grouper = 'dayofyear'
+#            winSize = 12000
+#            std = 6000.
+        
+        elif i == 4:
+            aggPeriod = granularity = 'WY'
+            grouper = 'weekofyear'
+            winSize = 1200
+            std = 350
                         
         elif i == 2:
             aggPeriod = granularity = 'M'
             grouper = 'month'
-            winSize = 701
-            std = 300
-    
+            winSize = 17000
+            std = 2000
+        
+        elif i == 3:
+            aggPeriod = granularity = 'Q'
+            grouper = 'quarter'
+            winSize = 16000
+            std = 2000
+
+#        elif i == 4:
+#            aggPeriod = granularity = 'S'
+#            grouper = 'semester'
+#            winSize = 8600
+#            std = 4000
+            
+
         avg = 'avg'+aggPeriod+'_'+r_id
         z = 'Z'+aggPeriod+'_'+r_id
         u = 'U'+granularity+'_'+r_id

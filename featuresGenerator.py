@@ -110,9 +110,11 @@ def featureCreation(feed, window, h, grouper, dataDir, apiDic, r_id = None, long
             if (weather.shape[0] < feed.shape[0]):
                 if (feed.shape[0] - weather.shape[0] < (window + h)):
                     features = features[max(feed.index.get_loc(weather.index.min()-(window + h - 1)),0):feed.index.get_loc(weather.index.max()), :]
+                    response = response[max(feed.index.get_loc(weather.index.min()-(window + h - 1)),0):feed.index.get_loc(weather.index.max()), :]
                     feed = feed.ix[weather.index.min():weather.index.max(),:]
                 else:
                     features = features[feed.index.get_loc(weather.index.min()):(feed.index.get_loc(weather.index.max())+1), :]
+                    response = response[feed.index.get_loc(weather.index.min()):(feed.index.get_loc(weather.index.max())+1), :]
                     feed = feed.ix[weather.index.min():weather.index.max(),:]
                     features = np.concatenate((feed.ix[:, ('isworkingday',grouper,'hourofday','dayofweek','month')],weather, features), axis=1)
             else:
