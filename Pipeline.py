@@ -54,8 +54,8 @@ window = 672
 h = 48
 
 # Saving Results object
-results_path = os.path.join(dataDir, 'RESULTS', '%s_1.csv' %grouper)
-forecast_path = os.path.join(dataDir, 'FORECAST', '%s_1.csv' %grouper)
+results_path = os.path.join(dataDir, 'RESULTS', '%s_2.csv' %grouper)
+forecast_path = os.path.join(dataDir, 'FORECAST', '%s_2.csv' %grouper)
 columns = ['feed', 'type', 'strategy', 'model', 'measure', 'time']
 
 for i  in range(h):
@@ -100,8 +100,12 @@ for index, row in apiDic.ix[[9, 8, 2], ['key', 'type', 'id']].iterrows():
     validation = range(int(features.shape[0]*0.9), features.shape[0])
 
     # MIMO, DIR and Recursive
-
-    for strategy in ['MIMO', 'REC', 'DIR', 'DIRMO']:
+    if r_id == '3009':
+        strategies = ['DIRMO']
+    else:
+        strategies = ['MIMO', 'REC', 'DIR', 'DIRMO']
+        
+    for strategy in strategies:
 
         if strategy == 'MIMO':
 
@@ -397,7 +401,7 @@ for index, row in apiDic.ix[[9, 8, 2], ['key', 'type', 'id']].iterrows():
                                                             r_id, ((i+1)*s)))
 
                         if model == 'NN':
-                            clf.fit(features, response[:, 0])
+                            clf.fit(features, response[:, (i*s):((i+1)*s)])
                         else:
                             clf, model_matrix = mlf.gridSeach(clf, parameters,
                                                               features,
