@@ -54,8 +54,8 @@ window = 672
 h = 48
 
 # Saving Results object
-results_path = os.path.join(dataDir, 'RESULTS', '%s_2.csv' %grouper)
-forecast_path = os.path.join(dataDir, 'FORECAST', '%s_2.csv' %grouper)
+results_path = os.path.join(dataDir, 'RESULTS', '%s_3.csv' %grouper)
+forecast_path = os.path.join(dataDir, 'FORECAST', '%s_3.csv' %grouper)
 columns = ['feed', 'type', 'strategy', 'model', 'measure', 'time']
 
 for i  in range(h):
@@ -66,7 +66,7 @@ predictions = pd.DataFrame(columns=columns)
 del predictions['measure']
 
 # This is new
-for index, row in apiDic.ix[[9, 8, 2], ['key', 'type', 'id']].iterrows():
+for index, row in apiDic.ix[[1], ['key', 'type', 'id']].iterrows():
 
     r_type = str(row['type'])
     r_id = str(row['id'])
@@ -273,7 +273,8 @@ for index, row in apiDic.ix[[9, 8, 2], ['key', 'type', 'id']].iterrows():
                 del (c, clf, r2, mae, mape, r)
 
         if strategy == 'REC':
-
+            
+            predRec = range(int(features.shape[0]*0.7), int(features.shape[0]))
             for j in range(3):
 
                 if j == 0:
@@ -313,14 +314,15 @@ for index, row in apiDic.ix[[9, 8, 2], ['key', 'type', 'id']].iterrows():
                 joblib.dump(clf, os.path.join(wd, 'MODELS',
                                               '%s_%s_%s_%s_t1.pkl' %(model, r_type, r_id, grouper)))
 
-                predict = pd.DataFrame()
-                feat = pd.DataFrame(features)
+                pd.DataFrame(np.zeros((predRec[-1]-predRec[0], h)))
+                feat = pd.DataFrame(features[:])
                 for i in range(h):
                     print('predicting %s' %(i+1))
 
-                    feat.ix[test[(i+1):-(h-i)], (feat.shape[1]-1-i)] = clf.predict(feat.ix[test[i:-(h+1-i)], :])
-                predict = pd.DataFrame(np.fliplr(feat.ix[validation[(h+1):],
-                                                         (feat.shape[1]-h):]))
+                    predict.ix[i:,i] = clf.predict(feat.ix[i:, :])[:-1]
+                    feat.ix[(i+1):, (feat.shape[1]-1-i):] = predict.ix[i:,:i].values
+                
+                predict = predict.ix[(validation[0]-predRec[0]-1):,:]
                 predict.columns = ['t_%i' %(i+1) for i in range(h)]
 
                 running_time = time.time() - start
@@ -425,7 +427,7 @@ for index, row in apiDic.ix[[9, 8, 2], ['key', 'type', 'id']].iterrows():
                                 mae.extend(mean_absolute_error(response[validation, (i*s):((i+1)*s)],
                                                                prediction, multioutput='raw_values'))
                             if measure == 'MAPE':
-                                mape.extend(np.mean((np.abs(response[validation, (i*s):((i+1)*s)] - prediction)/ response[validation, (i*s):((i+1)*s)]), axis=0))
+                                mape.extend(np.mean((np.abs(response[validation, (i*s):((i+1)*s)] - prediction)/ response[validation, (i*s):((i+1)*s)]), axis=0)*100)
 
                     running_time = time.time() - start
                     print(running_time/60)
