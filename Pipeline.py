@@ -65,7 +65,7 @@ predictions = pd.DataFrame(columns=columns)
 del predictions['measure']
 
 # This is new
-for index, row in apiDic.ix[[1], ['key', 'type', 'id']].iterrows():
+for index, row in apiDic.ix[[8,9], ['key', 'type', 'id']].iterrows():
 
     r_type = str(row['type'])
     r_id = str(row['id'])
