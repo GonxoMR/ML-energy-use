@@ -94,10 +94,6 @@ def cleaning_nans(feed, r_type):
     This function gives back a feed clean of Nas to be use in the later procedures.
     
     """
-
-
-#    from pandas.tseries.offsets import *
-    # Deleting NaNs at the beggining and end of te series.
     feed = pd.DataFrame(feed)
     first = feed.first_valid_index()
     last = feed.last_valid_index()
@@ -485,7 +481,6 @@ def ts_to_mimo(x, window, h):
     """
     import numpy as np
     
-   
     n = int(x.shape[0])
     h = int(h)
     window = int(window)
@@ -499,6 +494,21 @@ def ts_to_mimo(x, window, h):
         response[t, :] = x[(t + window):(t + window + h)]
 
     return features, response
+
+def weather_to_mimo(weather, window, h):
+    import numpy as np
+    
+    n = int(weather.shape[0])
+    h = int(h)
+    window = int(window)
+    nobs = n - h - window + 1
+
+    mimo = np.zeros((nobs, h))
+
+    for t in range(nobs):
+        mimo[t, :] = weather[(t + window):(t + window + h)]
+
+    return mimo
 
 def gridSeach(model, parameters, features, response, train, test):
     """
@@ -544,85 +554,12 @@ def gridSeach(model, parameters, features, response, train, test):
     
     return (model, model_matrix)
 
-#def test_stationarity(timeseries):
-#    from statsmodels.tsa.stattools import adfuller
-#    import matplotlib.pyplot as plt
-#    #Determing rolling statistics
-#    rolmean = pd.rolling_mean(timeseries, window=2880)
-#    rolstd = pd.rolling_std(timeseries, window=2880)
-#
-#    #Plot rolling statistics:
-#    orig = plt.plot(timeseries, color='blue',label='Original')
-#    mean = plt.plot(rolmean, color='red', label='Rolling Mean')
-#    std = plt.plot(rolstd, color='black', label = 'Rolling Std')
-#    plt.legend(loc='best')
-#    plt.title('Rolling Mean & Standard Deviation')
-#    plt.show(block=False)
-#    
-#    #Perform Dickey-Fuller test:
-#    print ('Results of Dickey-Fuller Test:')
-#    print(timeseries.shape)
-#    dftest = adfuller(timeseries, autolag='AIC')
-#    dfoutput = pd.Series(dftest[0:4], index=['Test Statistic','p-value','#Lags Used','Number of Observations Used'])
-#    for key,value in dftest[4].items():
-#        dfoutput['Critical Value (%s)'%key] = value
-#    print (dfoutput)
-#    
-#def iterative_ARIMA_fit(series, ARrange, MArange):
-#    """ Iterates within the allowed values of the p and q parameters 
-#    
-#    Returns a dictionary with the successful fits.
-#    Keys correspond to models.
-#    """
-#    from statsmodels.tsa.arima_model import ARIMA
-#    if len(ARrange)==0:
-#        ARrange = range(0, 5)
-#    if len(MArange)==0:
-#        MArange = range(0,5)
-##    Diffrange = range(0)
-#    Diff = 0
-#    ARIMA_fit_results = {}
-#    for AR in ARrange :
-#        for MA in MArange :
-##            for Diff in Diffrange:
-#            model = ARIMA(series, order = (AR,Diff,MA))
-#            fit_is_available = False
-#            results_ARIMA = None
-#            try:
-#                results_ARIMA = model.fit(disp = -1, method = 'css')
-#                fit_is_available = True
-#            except:
-#                continue
-#            if fit_is_available:
-#                safe_RSS = get_safe_RSS(series, results_ARIMA.fittedvalues)
-#                ARIMA_fit_results[(AR,Diff,MA)]=[safe_RSS,results_ARIMA]
-#    
-#    return ARIMA_fit_results
-#
-#
-#def get_safe_RSS(series, fitted_values):
-#    """ Checks for missing indices in the fitted values before calculating RSS
-#    
-#    Missing indices are assigned as np.nan and then filled using neighboring points
-#    """
-#    from sklearn.metrics import r2_score
-#    fitted_values_copy = fitted_values  # original fit is left untouched
-#    missing_index = list(set(series.index).difference(set(fitted_values_copy.index)))
-#    if missing_index:
-#        nan_series = pd.Series(index = pd.to_datetime(missing_index))
-#        fitted_values_copy = fitted_values_copy.append(nan_series)
-#        fitted_values_copy.sort_index(inplace = True)
-#        fitted_values_copy.fillna(method = 'bfill', inplace = True)  # fill holes
-#        fitted_values_copy.fillna(method = 'ffill', inplace = True)
-#    return r2_score(series, fitted_values_copy)
-#
-#def get_best_ARIMA_model_fit(series):
-#    """ Returns a list with the best ARIMA model 
-#    
-#    The first element on the list contains the squared residual
-#    The second element on the list contains the fit results
-#    """
-#    if t.isstationary(series)[0]:
-#        ARIMA_fit_results = iterative_ARIMA_fit(series)
-#        best_ARIMA = min(ARIMA_fit_results, key = ARIMA_fit_results.get)
-#        return ARIMA_fit_results[best_ARIMA]
+def scorer_smape(y_real, y_pred):
+    """
+    This function computes the symetric mean absolute percentage error and returns
+    a scorer for crossvalidation.
+    """
+    import numpy as np
+    smape = np.mean(abs(y_real-y_pred)/(y_real+y_pred), axis=0)*100
+    return smape 
+
