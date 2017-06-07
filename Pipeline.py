@@ -13,7 +13,7 @@ import featuresGenerator as ft
 import strategies as stg
 
 from sklearn.ensemble import RandomForestRegressor
-from sklearn import neighbors as knn
+#from sklearn import neighbors as knn
 from sklearn import neural_network
 from sklearn.metrics import r2_score, mean_absolute_error
 #from sklearn.externals import joblib
@@ -98,7 +98,7 @@ for index, row in apiDic.ix[[8,9], ['key', 'type', 'id']].iterrows():
     test = range(int(features.shape[0]*0.7), int(features.shape[0]*0.9))
     validation = range(int(features.shape[0]*0.9), features.shape[0])
 
-    for model in ['ANN', 'KNN', 'RandFor']:
+    for model in ['ANN', 'RandFor']:
 
         if model == 'ANN':
             parameters = {'hidden_layer_sizes':[(600, 300), (600, 300, 100)],
@@ -106,11 +106,6 @@ for index, row in apiDic.ix[[8,9], ['key', 'type', 'id']].iterrows():
                           'alpha':[1e-5, 1e-4, 1e-3], 'tol':[1e-4, 1e-5]}
             to_run = neural_network.MLPRegressor(learning_rate_init=0.0001,
                                                  verbose=False, batch_size=4000)
-
-        if model == 'KNN':
-            parameters = {'n_neighbors':[5, 20, 50, 100],
-                          'weights':('uniform', 'distance')}
-            to_run = knn.KNeighborsRegressor(n_jobs=-1)
 
         if model == 'RandFor':
             parameters = {'max_depth':[30, 50, 70]}
