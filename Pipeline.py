@@ -2,8 +2,29 @@
 """
 Created on Wed Apr 26 10:57:10 2017
 
+This is the main file to run the machine learning. 
+
+It performs the following tasks:
+    1 - Gets and saves the data. Both household and weather data. 
+    Then for each feed:
+    2 - It cleans the missing data.
+    3 - It agregattes the feeds, from a granularity of 10 seconds to a granularity
+    of 30 minutes. 
+    4 - Takes out the seasonality of the data for periods of 30min, day of week, 
+    month and quarter. 
+    5 - Transforms the data form a w to kwh
+    6 - Makes a data structure transformation. Form a time series of size N to 
+    a matrix of time series of size N - H - window + 1
+    7 - It adds the relevant time series of weather with a PCA transformation that keeps
+    0.99 of the variance. 
+    8 - Selects the estrategies to run.
+    9 - Computes and select the different models. 
+    9 - Saves the results and the models
+    
 @author: Gonxo
 """
+
+# Imports
 import os
 #import time
 import pandas as pd
@@ -20,11 +41,11 @@ from sklearn.metrics import r2_score, mean_absolute_error
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics import make_scorer
 
-# Loading Data
+#----------------------- Instantiating variables -------------------------------
 # Obtaining working directory
 wd = os.getcwd()
-# Set up the destination  and secrects directory
-# Set up the destination directory
+
+# Set up the directory where the data and results will be stored
 dataDir = os.path.join(wd, 'DATA_DIRECTORY')
 
 # User Apikey and feed ids are neccesary to get the feed's data.
@@ -33,26 +54,27 @@ dataDir = os.path.join(wd, 'DATA_DIRECTORY')
 secretsDir = os.path.join(wd, 'SECRETS_DIRECTORY')
 apiDic = pd.DataFrame.from_csv(os.path.join(secretsDir, 'apiKeyDictionary.csv'))
 dataFile = 'raw_feed'
-grouper = '30min'
 
+# Giving the parameters for 30 min aggregation---------------------------------
+# As you migth know 1 day is composed by 48 periods of 30 minutes. If you have
+# a different granularity you have to change this paramers accordingly. e.g.
+# a 15min grouper will need a 96 h and if we are using 14 days of past data, 
+# a window = 1344. 
+
+# Granularity after aggregation
+grouper = '30min'
+# Window in the past (14 days) to use as time series. It is proved that bigger windows
+# improve accuracy but they also increase the computation time. 
+window = 672
+# Horizon in the future to forecast. We are forecasting 1 day ahead that is 48 30min periods. 
+h = 48
+
+# Set these variables as true to download feeds and weather data. 
 # If you already have downloaded the data set to False.
 fetch_data = False
 fetch_weather_data = False
 
-if fetch_data:
-    mlf.getting_saving_data(dataDir, secretsDir, apiDic, dataFile)
-    apiDic = pd.read_csv(os.path.join(secretsDir, 'apiKeyDictionary.csv'),
-                         sep=None, engine='python')
-if fetch_weather_data:
-    runfile(os.path.join(wd, 'obtaining_weather_data.py'), wdir=wd)
-
-# Giving the parameters for 30 min aggregation
-window = 672
-h = 48
-
-smape = make_scorer(mlf.scorer_smape, greater_is_better=False)
-
-# Saving Results object
+# Objects to store the results
 results_path = os.path.join(dataDir, 'RESULTS', '%s_3.csv' %grouper)
 forecast_path = os.path.join(dataDir, 'FORECAST', '%s_3.csv' %grouper)
 columns = ['feed', 'type', 'strategy', 'model', 'measure', 'time']
@@ -64,56 +86,89 @@ results = pd.DataFrame(columns=columns)
 predictions = pd.DataFrame(columns=columns)
 del predictions['measure']
 
-# This is new
-for index, row in apiDic.ix[[8,9], ['key', 'type', 'id']].iterrows():
+# Creating a measure object to evaluate the models. 
+smape = make_scorer(mlf.scorer_smape, greater_is_better=False)
 
+
+# ----------------------- Downloading the data --------------------------------
+# Storing destination ./dataDir/dataFile.h5 
+if fetch_data:
+    mlf.getting_saving_data(dataDir, secretsDir, apiDic, dataFile)
+    apiDic = pd.read_csv(os.path.join(secretsDir, 'apiKeyDictionary.csv'),
+                         sep=None, engine='python')
+if fetch_weather_data:
+    runfile(os.path.join(wd, 'obtaining_weather_data.py'), wdir=wd)
+
+# Perfroming the algorithm steps 2 - 9 for each feed. 
+for index, row in apiDic.ix[:, ['key', 'type', 'id']].iterrows():
+
+    # Local variables instantiation
     r_type = str(row['type'])
     r_id = str(row['id'])
     r_key = str(row['key'])
-    print(r_id)
 
+    # Steps 2 & 3 -------------------------------------------------------------
     # Nas cleaning takes place in the next step.
     # Solar or Solar + Grid with Nas cleaned.
-
     raw_feed = mlf.aggregation(r_key, r_type, r_id,
                                os.path.join(dataDir, '%s.h5' %dataFile), apiDic)
+    
     feed = raw_feed.groupby(pd.TimeGrouper(freq=grouper)).sum()
 
-    # Deseasonalize data
+    # 4 Deseasonalize data ---------------------------------------------------- 
     feed = mlf.deseasonalize(feed.ix[1:], r_id, grouper, plot=False)
 
-    # Normalize data
+    # 5 Transform into kwh ----------------------------------------------------
     feed['kwh'] = mlf.tokwh(feed.ix[:, -1])
-#    feed.ix[:,'kwh'].plot()
+
+# I thought on the necesity of normalization. Transformation into kwh is good
+# enougth for household volumnes. I might delete this later. 
 #    feed['normalized'] = ((feed.ix[:,-1] - feed.ix[:,-1].min()) /
                          #(feed.ix[:,-1].max() - feed.ix[:,-1].min()))
 
-        # Creating features, joining with weather data.
-
+# Creating features, joining with weather data.
+    # Steps 6 and 7 take place within this function. --------------------------
     features, response = ft.featureCreation(feed.ix[feed.ix[:, -1].first_valid_index():, -1],
                                             window, h, grouper,
                                             dataDir, apiDic, r_id)
 
+    # Dividing the data into train, test and validation datasets. As feedbak in 
+    # my thesis they said that validate against other houses might be worht to study.
     train = range(int(features.shape[0]*0.7))
     test = range(int(features.shape[0]*0.7), int(features.shape[0]*0.9))
     validation = range(int(features.shape[0]*0.9), features.shape[0])
 
+    # Step 8 training models. I will give coments in the interesting parts. ------
+    # K-nearest neighbours was also included in previous tries but the performance
+    # was really bad.
+    # I want to try SVR with multi output.
     for model in ['ANN', 'RandFor']:
-
+        
         if model == 'ANN':
+            # Setting parameters for the ANN. Only 2 network architectures are
+            # tested. Automatizing architecture selection is one of the priorities.
             parameters = {'hidden_layer_sizes':[(600, 300), (600, 300, 100)],
                           'activation':['logistic', 'relu'],
                           'alpha':[1e-5, 1e-4, 1e-3], 'tol':[1e-4, 1e-5]}
             to_run = neural_network.MLPRegressor(learning_rate_init=0.0001,
                                                  verbose=False, batch_size=4000)
-
+        
         if model == 'RandFor':
             parameters = {'max_depth':[30, 50, 70]}
             to_run = RandomForestRegressor(n_jobs=-1)
-
+        
+        # Performing a seach to find the best hyperparameters
         clf = RandomizedSearchCV(to_run, param_distributions=parameters,
                                  scoring=smape, n_iter=7, cv=[(train, test)])
-
+        
+        # This selects the different strategies to run. Each strategy is defined
+        # by two parameters, the horizon to forecast and the size of each one of
+        # the individual forecasts. The format to be given is [horizon, size].
+        # go to ../strategies.py for more info. 
+        # Some strategies:
+            # [h,1] Direct strategy
+            # [h,6] DIRMO strategy with 8 chunks of forecast of size 6. 
+            # [h,h] MIMO strategy. 
         for horizon, size in [[h, 1], [h, 6], [h, h]]:
 
             strategy = stg.findStrategy(horizon, size)
@@ -146,6 +201,7 @@ for index, row in apiDic.ix[[8,9], ['key', 'type', 'id']].iterrows():
             c.extend(['t_%i' %(i+1) for i in range(horizon)])
             r = pd.DataFrame([r2, mae, mape, smape], columns=c)
 
+            # Step 9 ----------------------------------------------------------
             r['feed'] = r_id
             r['strategy'] = strategy
             r['model'] = model
@@ -160,6 +216,9 @@ for index, row in apiDic.ix[[8,9], ['key', 'type', 'id']].iterrows():
             predictions = predictions.append(predict)
             predictions.to_csv(forecast_path)
 
+
+
+# --------------------- Deprecated. to delete soon ----------------------------
 #
 #    for strategy in ['MIMO', 'REC', 'DIR', 'DIRMO']:
 #
